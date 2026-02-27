@@ -130,8 +130,8 @@ const statusColors: Record<OrderStatus, string> = {
 };
 
 // ==================== MAIN COMPONENT ====================
-const Index = () => {
-  const [view, setView] = useState<View>("home");
+const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
+  const [view, setView] = useState<View>(bypassHome ? "login" : "home");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [orderForm, setOrderForm] = useState({ nama: "", wa: "", alamat: "", catatan: "", paymentMethod: "transfer", deliveryMethod: "dikirim" });
   const [demoOrderForm, setDemoOrderForm] = useState({ nama: "", wa: "", alamat: "", catatan: "", paymentMethod: "cod" });
@@ -162,6 +162,13 @@ const Index = () => {
 
   const { alias } = useParams();
   const navigate = useNavigate();
+
+  // Handle /pageseller bypass logic
+  useEffect(() => {
+    if (bypassHome && view === "home") {
+      setView("login");
+    }
+  }, [bypassHome]);
 
   // Handle Dynamic Public Store Route
   useEffect(() => {
