@@ -2,9 +2,12 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-const APP_VERSION = '2026.02.27.02'; // <-- Change this number to force an update
+const APP_VERSION = '2026.02.27.06'; // <-- Change this number to force an update
 
+// Execute aggressive cache clearing before React mounts if versions mismatch
 if (localStorage.getItem('v_cache') !== APP_VERSION) {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
     // 1. Clear all Service Workers
     if ('serviceWorker' in navigator && navigator.serviceWorker) {
         navigator.serviceWorker.getRegistrations().then(regs => {
@@ -19,9 +22,24 @@ if (localStorage.getItem('v_cache') !== APP_VERSION) {
         }).catch(e => console.warn("Caches Clear Error:", e));
     }
 
-    // 3. Update version and Hard Reload
+    // 3. Update version and force nuclear reload via URL mutation (Bypasses legacy device caching)
     localStorage.setItem('v_cache', APP_VERSION);
-    window.location.reload();
+
+    // Using replace with a timestamp forces the browser to treat it as a brand new page request
+    const currentUrl = window.location.href.split('?')[0];
+
+    if (isIOS) {
+        // iOS Safari PWA is incredibly stubborn. 
+        // We force a hard reload via true parameter, 
+        // wrapped in timeout to allow SW unregistration.
+        setTimeout(() => {
+            window.location.reload(true as any); // cast to any for older standard support
+        }, 500);
+    } else {
+        // Android Chrome is compliant but aggressive. 
+        // A direct URL mutation works perfectly.
+        window.location.replace(`${currentUrl}?v=${new Date().getTime()}`);
+    }
 }
 
 // Set title dynamically so WhatsApp crawler misses it but browsers show it

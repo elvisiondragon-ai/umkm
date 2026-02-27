@@ -238,7 +238,7 @@ const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
   const [newProduct, setNewProduct] = useState({ id: "", name: "", description: "", price: "", imageFile: null as File | null });
   const [productImagePreview, setProductImagePreview] = useState<string | null>(null);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
-  const [storeSettingsForm, setStoreSettingsForm] = useState({ name: "", alias: "", waNumber: "", address: "", theme: "", payment: "", logo_url: "", capi: "", pixel: "" });
+  const [storeSettingsForm, setStoreSettingsForm] = useState({ name: "", alias: "", waNumber: "", address: "", theme: "", payment: "", logo_url: "", capi: "", pixel: "", test_event_code: "" });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [isSavingStore, setIsSavingStore] = useState(false);
@@ -439,7 +439,8 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
           payment: storeData.payment_info || "",
           logo_url: storeData.logo_url || "",
           capi: storeData.capi || "",
-          pixel: storeData.pixel || ""
+          pixel: storeData.pixel || "",
+          test_event_code: storeData.test_event_code || ""
         });
         if (storeData.logo_url) setLogoPreview(storeData.logo_url);
 
@@ -681,6 +682,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
       // Only send capi/pixel if user has entered a value
       if (storeSettingsForm.capi) updatePayload.capi = storeSettingsForm.capi;
       if (storeSettingsForm.pixel) updatePayload.pixel = storeSettingsForm.pixel;
+      if (storeSettingsForm.test_event_code !== undefined) updatePayload.test_event_code = storeSettingsForm.test_event_code;
 
       const { error } = await supabase.from('stores').update(updatePayload).eq('id', store.id);
 
@@ -1658,14 +1660,49 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
               className="w-full px-3 py-2.5 rounded-lg border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50 resize-none"
             />
           </div>
-          <a
-            href={`https://wa.me/${formatWaNumber(store?.wa_number || '')}?text=${encodeURIComponent(generateOrderWaText())}`}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            onClick={() => {
+              // Calculate total value for CAPI trigger
+              let totalValue = 0;
+              let hasItem = false;
+              products.forEach(p => {
+                const qty = demoCart[p.id.toString()] || 0;
+                if (qty > 0) {
+                  totalValue += (p.price * qty);
+                  hasItem = true;
+                }
+              });
+
+              if (hasItem && store?.id) {
+                // Prepare items summary for the Order table
+                const itemsSummary = products
+                  .filter(p => demoCart[p.id.toString()] > 0)
+                  .map(p => `${demoCart[p.id.toString()]}x ${p.name}`)
+                  .join(", ");
+
+                // Fire CAPI Purchase Event & Save Order in the background
+                fetch("https://api.elvisiongroup.com/functions/v1/capi-stores", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    store_id: store.id,
+                    value: totalValue,
+                    currency: "IDR",
+                    order_id: `ORD_${Date.now()}`,
+                    customer_name: orderForm.nama || "Guest",
+                    customer_wa: orderForm.wa || "-",
+                    items_summary: itemsSummary
+                  })
+                }).catch(e => console.error("CAPI/Order Trigger failed:", e));
+              }
+
+              // Open WhatsApp
+              window.open(`https://wa.me/${formatWaNumber(store?.wa_number || '')}?text=${encodeURIComponent(generateOrderWaText())}`, '_blank');
+            }}
             className="w-full py-3 rounded-xl bg-success/10 border border-success/30 text-success font-semibold text-sm flex items-center justify-center gap-2 hover:bg-success hover:text-white transition-all shadow-sm"
           >
             <Send className="w-4 h-4" /> Pesan via WhatsApp
-          </a>
+          </button>
         </div>
       </section>
 
@@ -1715,36 +1752,58 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
 
         {/* CAPI Settings */}
-        {/* CAPI Settings (LOCKED visually but clickable) */}
-        <div
-          onClick={() => {
-            toast("Fitur Premium 🌟", {
-              description: "Maaf Fitur ini untuk akun Pro.",
-            });
-          }}
-          className="bg-card rounded-2xl shadow-sm border p-6 relative overflow-hidden group cursor-pointer hover:border-amber-400 transition-colors"
-        >
-          <div className="flex items-center gap-3 border-b pb-4 mb-4">
-            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-              <Activity className="w-5 h-5 text-blue-600" />
+        {/* CAPI Settings Form */}
+        <div className="bg-card rounded-2xl shadow-sm border p-6 relative overflow-hidden group hover:border-blue-400 transition-colors">
+          <div className="flex items-center justify-between border-b pb-4 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                <Activity className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg flex items-center gap-2">CAPI Ads Booster</h3>
+                <p className="text-xs text-muted-foreground">Tingkatkan konversi dengan Conversion API Meta.</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-bold text-lg flex items-center gap-2">CAPI Ads Booster <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Pro Only</span></h3>
-              <p className="text-xs text-muted-foreground">Tingkatkan konversi dengan Conversion API Meta.</p>
-            </div>
+            <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider hidden sm:inline-block">Purchase Tracker</span>
           </div>
-          <div className="space-y-4 opacity-50 pointer-events-none">
+          <div className="space-y-4">
             <div>
-              <label className="text-sm font-semibold text-foreground mb-1 block">CAPI Token</label>
+              <label className="text-sm font-semibold text-foreground mb-1 block">Meta Pixel ID</label>
+              <input
+                type="text"
+                placeholder="1234567890..."
+                value={storeSettingsForm.pixel}
+                onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, pixel: e.target.value })}
+                className="w-full px-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-foreground mb-1 block">CAPI Access Token</label>
               <input
                 type="text"
                 placeholder="EAAI..."
-                disabled
-                className="w-full px-4 py-3 rounded-xl border bg-background text-sm text-foreground"
+                value={storeSettingsForm.capi}
+                onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, capi: e.target.value })}
+                className="w-full px-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
-            <button disabled className="w-full py-3 rounded-xl bg-blue-600 text-white font-bold shadow-sm">
-              Simpan Konfigurasi CAPI
+            <div>
+              <label className="text-sm font-semibold text-foreground mb-1 block">Test Event Code (Opsional)</label>
+              <input
+                type="text"
+                placeholder="TEST51000..."
+                value={storeSettingsForm.test_event_code}
+                onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, test_event_code: e.target.value })}
+                className="w-full px-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
+              <p className="text-xs text-muted-foreground mt-2">Dapatkan code testing di Meta Events Manager. Kosongkan jika sudah Live.</p>
+            </div>
+            <button
+              onClick={handleSaveStoreSettings}
+              disabled={isSavingStore}
+              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-sm transition-colors disabled:opacity-50"
+            >
+              {isSavingStore ? "Menyimpan Konfigurasi..." : "Simpan Konfigurasi CAPI"}
             </button>
           </div>
         </div>
