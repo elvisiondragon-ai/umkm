@@ -6,7 +6,7 @@ import {
   Package, TrendingUp, Users, DollarSign, ArrowLeft, Store, Menu, X,
   Send, MapPin, Phone, Instagram, Facebook, Home, LogOut, LayoutDashboard,
   Settings, User as UserIcon, UploadCloud, Image as ImageIcon, CheckCircle2,
-  Lock, ArrowRight, Activity, Inbox
+  Lock, ArrowRight, Activity, Inbox, Copy
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { toast, Toaster } from "sonner";
@@ -2356,10 +2356,30 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
               <div>
                 <label className="text-sm font-semibold text-foreground mb-1 block">Web URL (Alias)</label>
                 {store?.alias ? (
-                  <div className="w-full px-4 py-3 rounded-xl border bg-muted/30 text-sm text-foreground flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                    <span className="text-muted-foreground">umkm.elvisiongroup.com/</span>
-                    <span className="font-bold text-foreground">{storeSettingsForm.alias}</span>
+                  <div className="flex flex-col gap-2">
+                    <div className="w-full px-4 py-3 rounded-xl border bg-muted/30 text-sm text-foreground flex items-center justify-between gap-2 overflow-hidden">
+                      <div className="flex items-center gap-2 truncate">
+                        <Lock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-muted-foreground truncate hidden md:inline">umkm.elvisiongroup.com/</span>
+                        <span className="font-bold text-foreground truncate">{storeSettingsForm.alias}</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const url = `${window.location.origin}/${store.alias}`;
+                          navigator.clipboard.writeText(url);
+                          toast.success("Link Toko Tersalin!", { description: "Bagikan link ini ke pelanggan Anda." });
+                        }}
+                        className="p-2 -mr-2 bg-secondary/10 text-secondary hover:bg-secondary hover:text-white rounded-lg transition-colors shrink-0 flex items-center gap-1"
+                        title="Copy URL Toko"
+                        type="button"
+                      >
+                        <Copy className="w-4 h-4" />
+                        <span className="text-xs font-bold hidden sm:inline">Copy</span>
+                      </button>
+                    </div>
+                    <p className="text-xs font-bold text-secondary flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> copy url ini toko punya kamu
+                    </p>
                   </div>
                 ) : (
                   <div className="relative">
