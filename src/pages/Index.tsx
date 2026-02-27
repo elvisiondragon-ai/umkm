@@ -431,11 +431,17 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
 
   const fetchStoreData = async (userId: string) => {
     try {
-      const { data: storeData } = await supabase
+      const { data: storeData, error: storeError } = await supabase
         .from('stores')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (storeError) {
+        console.error("Error fetching store data:", storeError);
+      }
 
       let activeStore = storeData;
 
@@ -470,6 +476,18 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
         if (!createError && newStore) {
           activeStore = newStore;
         }
+      }
+
+      // SELF-HEALING: Delete accidental duplicate stores created by the prior .single() bug
+      if (activeStore && activeStore.id) {
+        supabase
+          .from('stores')
+          .delete()
+          .eq('user_id', userId)
+          .neq('id', activeStore.id)
+          .then(({ error }) => {
+            if (error) console.error("Failed to cleanup duplicate stores:", error);
+          });
       }
 
       if (activeStore) {
