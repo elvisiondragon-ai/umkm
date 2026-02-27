@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Globe, ShoppingCart, MessageCircle, BarChart3, Zap, Shield, Smartphone,
   Star, ChevronDown, ChevronUp, Check, Plus, Pencil, Trash2, Eye,
@@ -8,9 +9,11 @@ import {
   Lock, ArrowRight, Activity, Inbox
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { toast, Toaster } from "sonner";
+import imageCompression from 'browser-image-compression';
 
 // ==================== TYPES ====================
-type View = "home" | "dashboard" | "tools" | "umkm-template" | "login" | "create-store" | "settings" | "profile";
+type View = "home" | "dashboard" | "tools" | "umkm-template" | "login" | "create-store" | "settings" | "profile" | "live-store";
 type OrderStatus = "baru" | "proses" | "kirim" | "selesai";
 
 interface Product {
@@ -95,58 +98,28 @@ const SAMPLE_ORDERS: Order[] = [
 const formatRp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
 
 // Helper to compress image
-const compressImage = (file: File, maxWidth = 800, maxFileKB = 100): Promise<File> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        let width = img.width;
-        let height = img.height;
-
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, width, height);
-
-        let quality = 0.9;
-        const testCompression = () => {
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                const kb = blob.size / 1024;
-                if (kb > maxFileKB && quality > 0.1) {
-                  quality -= 0.1;
-                  testCompression();
-                } else {
-                  const compressedFile = new File([blob], file.name, {
-                    type: "image/jpeg",
-                    lastModified: Date.now(),
-                  });
-                  resolve(compressedFile);
-                }
-              } else {
-                reject(new Error("Canvas toBlob failed"));
-              }
-            },
-            "image/jpeg",
-            quality
-          );
-        };
-        testCompression();
-      };
-      img.onerror = (error) => reject(error);
+const compressImage = async (file: File, maxWidth = 800, maxFileKB = 100): Promise<File> => {
+  try {
+    const options = {
+      maxSizeMB: maxFileKB / 1024,
+      maxWidthOrHeight: maxWidth,
+      useWebWorker: true,
+      fileType: "image/jpeg"
     };
-    reader.onerror = (error) => reject(error);
-  });
+    const compressedFile = await imageCompression(file, options);
+
+    // Force .jpg extension
+    const baseName = file.name.replace(/\.[^/.]+$/, "");
+    const finalFileName = `${baseName}.jpg`;
+
+    return new File([compressedFile], finalFileName, {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    });
+  } catch (error) {
+    console.error("Compression error:", error);
+    return file; // fallback to original
+  }
 };
 
 const statusColors: Record<OrderStatus, string> = {
@@ -160,7 +133,11 @@ const statusColors: Record<OrderStatus, string> = {
 const Index = () => {
   const [view, setView] = useState<View>("home");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [orderForm, setOrderForm] = useState({ nama: "", wa: "", alamat: "", produk: "", qty: "1", catatan: "" });
+  const [orderForm, setOrderForm] = useState({ nama: "", wa: "", alamat: "", catatan: "", paymentMethod: "transfer", deliveryMethod: "dikirim" });
+  const [demoOrderForm, setDemoOrderForm] = useState({ nama: "", wa: "", alamat: "", catatan: "", paymentMethod: "cod" });
+  const [demoCart, setDemoCart] = useState<Record<string, number>>({});
+  const [showDemoOutput, setShowDemoOutput] = useState(false);
+  const [isMobile, setIsMobile] = useState(true);
   const [setupForm, setSetupForm] = useState({
     storeName: "",
     description: "",
@@ -183,6 +160,43 @@ const Index = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
 
+  const { alias } = useParams();
+  const navigate = useNavigate();
+
+  // Handle Dynamic Public Store Route
+  useEffect(() => {
+    if (alias) {
+      const fetchPublicStore = async () => {
+        setIsLoading(true);
+        const { data: storeData } = await supabase
+          .from('stores')
+          .select('*')
+          .eq('alias', alias)
+          .single();
+
+        if (storeData) {
+          setStore(storeData);
+          const { data: productsData } = await supabase
+            .from('stores_product')
+            .select('*')
+            .eq('store_id', storeData.id);
+
+          if (productsData) setProducts(productsData);
+          setView("live-store");
+
+          // Increment page views
+          supabase.from("page_views").insert({ store_id: storeData.id, user_agent: navigator.userAgent }).then();
+        } else {
+          toast.error("Toko tidak ditemukan");
+          navigate('/');
+        }
+        setIsLoading(false);
+      };
+
+      fetchPublicStore();
+    }
+  }, [alias, navigate]);
+
   // Mock Data for Demo (Toko Mandiri)
   const mockStats = [
     { label: "Total Order", value: "142", icon: Package, change: "+12% hari ini", color: "text-secondary" },
@@ -204,10 +218,190 @@ const Index = () => {
   ];
 
   // New product editing state
-  const [newProduct, setNewProduct] = useState({ name: "", description: "", price: "", imageFile: null as File | null });
+  const [newProduct, setNewProduct] = useState({ id: "", name: "", description: "", price: "", imageFile: null as File | null });
+  const [productImagePreview, setProductImagePreview] = useState<string | null>(null);
   const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [storeSettingsForm, setStoreSettingsForm] = useState({ name: "", alias: "", waNumber: "", address: "", theme: "", payment: "", logo_url: "", capi: "", pixel: "" });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [isSavingStore, setIsSavingStore] = useState(false);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [pageViews, setPageViews] = useState(0);
+
+  // New states for Email Update
+  const [newEmail, setNewEmail] = useState("");
+  const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
+
+  // AI Image Generator States
+  const [aiPrompt, setAiPrompt] = useState("Tolong buatkan banner toko UMKM estetik dengan headline mencolok dan deskripsi singkat. Gunakan warna bernuansa terang dan hangat.");
+  const [aiImageRef, setAiImageRef] = useState<File | null>(null);
+  const [aiImageRefPreview, setAiImageRefPreview] = useState<string | null>(null);
+  const [aiPreviewUrl, setAiPreviewUrl] = useState<string | null>(null);
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [isUploadingAi, setIsUploadingAi] = useState(false);
+  const [isToolsExpanded, setIsToolsExpanded] = useState<string | null>(null);
+
+  const handleGenerateAiBanner = async () => {
+    if (!aiPrompt) return;
+    setIsGeneratingAi(true);
+    setAiPreviewUrl(null);
+    try {
+      let imageBase64 = null;
+      if (aiImageRef) {
+        // Convert the reference image to base64
+        imageBase64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(aiImageRef);
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = error => reject(error);
+        });
+      }
+
+      const { data, error } = await supabase.functions.invoke('stores-banana', {
+        body: { prompt: aiPrompt, imageBase64 }
+      });
+      if (error) throw error;
+      if (data && data.image) {
+        setAiPreviewUrl(data.image);
+      } else {
+        throw new Error("Gagal mendapatkan gambar dari AI");
+      }
+    } catch (e: any) {
+      console.error("AI Gen Error:", e);
+      toast.error("Gagal", { description: e.message });
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
+
+  // Helper to convert base64 to Blob
+  const base64ToBlob = (base64: string, mimeType: string) => {
+    const byteString = atob(base64.split(',')[1] || base64);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], { type: mimeType });
+  };
+
+  const handleUseAiBanner = async () => {
+    if (!aiPreviewUrl || !store?.id) return;
+    setIsUploadingAi(true);
+    try {
+      // Create a Blob directly from the Base64 string from AI
+      const isBase64 = aiPreviewUrl.startsWith('data:image');
+      const blob = isBase64
+        ? base64ToBlob(aiPreviewUrl, 'image/jpeg')
+        : await (await fetch(aiPreviewUrl)).blob();
+
+      const file = new File([blob], "ai-banner.jpg", { type: "image/jpeg" });
+      const compressed = await compressImage(file, 1200, 300);
+      const fileName = `${store.alias}/ai-${Date.now()}.jpg`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('stores_banana')
+        .upload(fileName, compressed, { cacheControl: '3600', upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage.from('stores_banana').getPublicUrl(fileName);
+      const finalLogoUrl = publicUrlData.publicUrl;
+
+      if (store.logo_url && store.logo_url !== '/default-hero.png') {
+        try {
+          const urlObj = new URL(store.logo_url);
+          if (urlObj.pathname.includes('/public/Stores/')) {
+            const oldPath = urlObj.pathname.split('/public/Stores/')[1];
+            if (oldPath) await supabase.storage.from('Stores').remove([decodeURIComponent(oldPath)]);
+          } else if (urlObj.pathname.includes('/public/stores_banana/')) {
+            const oldPath = urlObj.pathname.split('/public/stores_banana/')[1];
+            if (oldPath) await supabase.storage.from('stores_banana').remove([decodeURIComponent(oldPath)]);
+          }
+        } catch (e) { }
+      }
+
+      const { error: updateError } = await supabase.from('stores').update({ logo_url: finalLogoUrl }).eq('id', store.id);
+      if (updateError) throw updateError;
+
+      await fetchStoreData(user.id);
+      setAiPreviewUrl(null);
+      setIsToolsExpanded(null);
+      toast.success("Sukses!", { description: "Banner AI berhasil dipasang di toko Anda." });
+    } catch (e: any) {
+      console.error("Upload AI Error:", e);
+      toast.error("Gagal memasang banner", { description: e.message });
+    } finally {
+      setIsUploadingAi(false);
+    }
+  };
+
+  // Auto-generate WhatsApp Demo Text
+  const generateOrderWaText = () => {
+    const cartItems = Object.entries(demoCart).filter(([_, qty]) => qty > 0);
+    if (cartItems.length === 0 && !orderForm.catatan) {
+      return `Halo ${store?.name || 'Admin'},\n\nNama: ${orderForm.nama}\nAlamat: ${orderForm.alamat}\n\nPesanan:\n(Belum ada produk dari menu, silahkan dicek)`;
+    }
+
+    let itemsText = "";
+    let total = 0;
+    const activeProducts = (user || alias) ? products : mockProducts;
+
+    cartItems.forEach(([productId, qty]) => {
+      const product = activeProducts.find(p => p.id.toString() === productId);
+      if (product) {
+        const itemTotal = Number(product.price) * qty;
+        total += itemTotal;
+        itemsText += `\n- ${qty}x ${product.name} (${formatRp(itemTotal)})`;
+      }
+    });
+
+    // Generate a random tracking ID (e.g., A123123CS)
+    const randomChars = Math.random().toString(36).substring(2, 5).toUpperCase();
+    const randomNums = Math.floor(100000 + Math.random() * 900000);
+    const trackingId = `${randomChars}${randomNums}`;
+
+    let paymentText = "";
+    if (orderForm.paymentMethod === "transfer") {
+      paymentText = `\n💳 *Metode Bayar:* Transfer Bank (ke: ${store?.payment_info || 'Rekening Penjual'})`;
+    } else {
+      paymentText = `\n💳 *Metode Bayar:* Bayar di Tempat/COD`;
+    }
+
+    let deliveryText = "";
+    if (orderForm.deliveryMethod === "dikirim") {
+      deliveryText = `\n🚚 *Pengiriman:* Dikirim ke alamat tujuan`;
+    } else {
+      deliveryText = `\n🏪 *Pengiriman:* Ambil di Toko`;
+    }
+
+    return `Halo ${store?.name || 'Admin'}, saya mau pesan:
+
+🔖 *ID Pesanan: #${trackingId}*
+
+📦 *Detail Pesanan*${itemsText}
+
+📝 *Data Pembeli*
+Nama: ${orderForm.nama || "[Nama Anda]"}
+Wa: ${formatWaNumber(orderForm.wa) || "[No WA]"}
+Alamat: ${orderForm.alamat || "[Alamat Lengkap]"}
+Catatan: ${orderForm.catatan || "-"}${paymentText}${deliveryText}
+
+💵 *Total: ${formatRp(total)}*
+
+Mohon informasikan total plus ongkir (bila ada) ya.`;
+  };
+
+  // Utility to format WA number
+  const formatWaNumber = (wa: string) => {
+    let num = wa.replace(/\D/g, ''); // Remove all non-digits
+    if (num.startsWith('0')) {
+      num = '62' + num.substring(1);
+    } else if (num.startsWith('8')) {
+      num = '62' + num;
+    }
+    return num;
+  };
 
   const fetchStoreData = async (userId: string) => {
     try {
@@ -230,11 +424,36 @@ const Index = () => {
           capi: storeData.capi || "",
           pixel: storeData.pixel || ""
         });
+        if (storeData.logo_url) setLogoPreview(storeData.logo_url);
+
+        // Fetch products
         const { data: productsData } = await supabase
-          .from('products')
+          .from('stores_product')
           .select('*')
           .eq('store_id', storeData.id);
         if (productsData) setProducts(productsData);
+
+        // Fetch orders
+        const { data: ordersData } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('store_id', storeData.id)
+          .order('created_at', { ascending: false });
+        if (ordersData) {
+          setOrders(ordersData);
+          const revenue = ordersData.reduce((sum: number, o: any) => sum + (parseFloat(o.total_amount) || 0), 0);
+          setTotalRevenue(revenue);
+        }
+
+        // Fetch page views (today)
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const { count } = await supabase
+          .from('page_views')
+          .select('*', { count: 'exact', head: true })
+          .eq('store_id', storeData.id)
+          .gte('viewed_at', todayStart.toISOString());
+        setPageViews(count || 0);
       }
     } catch (e) {
       console.error(e);
@@ -242,6 +461,13 @@ const Index = () => {
   };
 
   useEffect(() => {
+    // Check initial screen size and listen for resize
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
     // Only use onAuthStateChange — handles both initial session and changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -258,7 +484,10 @@ const Index = () => {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("resize", checkMobile);
+    };
   }, []);
 
   const handleLogin = async () => {
@@ -291,8 +520,12 @@ const Index = () => {
       setIsLoading(true);
 
       // 1. Basic Validation
-      if (!setupForm.email || !setupForm.password || !setupForm.storeName || !setupForm.waNumber) {
-        throw new Error("Mohon lengkapi Email, Password, Nama Toko, dan Nomor WhatsApp.");
+      if (!setupForm.email || !setupForm.password || !setupForm.storeName) {
+        throw new Error("Mohon lengkapi Email, Password, dan Nama Toko.");
+      }
+
+      if (!setupForm.waNumber || setupForm.waNumber.length < 9) {
+        throw new Error("Nomor WhatsApp wajib diisi dengan benar (minimal 9 angka).");
       }
 
       // 2. Supabase Auth Sign Up
@@ -336,7 +569,8 @@ const Index = () => {
           theme_color: setupForm.theme === 'dark' ? '#000000' : setupForm.theme === 'colorful' ? '#ff5722' : '#ffffff',
           wa_number: setupForm.waNumber,
           address: setupForm.address,
-          payment_info: setupForm.bankAccount
+          payment_info: setupForm.bankAccount,
+          user_email: setupForm.email
         })
         .select('id')
         .single();
@@ -358,7 +592,7 @@ const Index = () => {
 
       if (validProducts.length > 0) {
         const { error: productsError } = await supabase
-          .from('products')
+          .from('stores_product')
           .insert(validProducts);
 
         if (productsError) {
@@ -383,23 +617,70 @@ const Index = () => {
     if (!store?.id) return;
     setIsSavingStore(true);
     try {
-      const { error } = await supabase.from('stores').update({
+      let finalLogoUrl = storeSettingsForm.logo_url;
+
+      // Upload logo if a new file was selected
+      if (logoFile) {
+        // Hero Banner compression: 1200px max width to preserve 16:9 quality, max 300KB
+        const compressed = await compressImage(logoFile, 1200, 300);
+        const fileName = `${store.alias}/logo-${Date.now()}.jpg`;
+        const { error: uploadError } = await supabase.storage
+          .from('Stores')
+          .upload(fileName, compressed, { cacheControl: '3600', upsert: true });
+        if (uploadError) {
+          console.error('Logo upload error:', uploadError);
+          throw uploadError;
+        }
+        const { data: publicUrlData } = supabase.storage.from('Stores').getPublicUrl(fileName);
+        finalLogoUrl = publicUrlData.publicUrl;
+
+        // Auto-delete old logo from bucket 
+        if (store.logo_url && store.logo_url !== '/default-hero.png') {
+          try {
+            const urlObj = new URL(store.logo_url);
+            if (urlObj.pathname.includes('/public/Stores/')) {
+              const oldPath = urlObj.pathname.split('/public/Stores/')[1];
+              if (oldPath) await supabase.storage.from('Stores').remove([decodeURIComponent(oldPath)]);
+            } else if (urlObj.pathname.includes('/public/stores_banana/')) {
+              const oldPath = urlObj.pathname.split('/public/stores_banana/')[1];
+              if (oldPath) await supabase.storage.from('stores_banana').remove([decodeURIComponent(oldPath)]);
+            }
+          } catch (e) {
+            console.error("Failed to delete old banner:", e);
+          }
+        }
+      }
+
+      // Build update payload - only include fields that exist
+      const updatePayload: Record<string, any> = {
         name: storeSettingsForm.name,
         alias: storeSettingsForm.alias,
         wa_number: storeSettingsForm.waNumber,
         address: storeSettingsForm.address,
         theme_color: storeSettingsForm.theme,
         payment_info: storeSettingsForm.payment,
-        logo_url: storeSettingsForm.logo_url,
-        capi: storeSettingsForm.capi,
-        pixel: storeSettingsForm.pixel
-      }).eq('id', store.id);
+        logo_url: finalLogoUrl,
+      };
+      // Only send capi/pixel if user has entered a value
+      if (storeSettingsForm.capi) updatePayload.capi = storeSettingsForm.capi;
+      if (storeSettingsForm.pixel) updatePayload.pixel = storeSettingsForm.pixel;
 
-      if (error) throw error;
+      const { error } = await supabase.from('stores').update(updatePayload).eq('id', store.id);
+
+      if (error) {
+        console.error('Store update error:', error);
+        throw error;
+      }
+      setLogoFile(null);
       await fetchStoreData(user.id);
-      alert("Pengaturan toko berhasil disimpan!");
+      toast.success("Pengaturan toko berhasil disimpan!", {
+        description: "Perubahan logo dan detail website telah diperbarui."
+      });
     } catch (e: any) {
-      alert("Gagal menyimpan: " + e.message);
+      console.error('handleSaveStoreSettings full error:', e);
+      toast.error("Gagal menyimpan", {
+        description: e.message
+      });
     } finally {
       setIsSavingStore(false);
     }
@@ -427,21 +708,39 @@ const Index = () => {
         image_url = publicUrlData.publicUrl;
       }
 
-      const { error } = await supabase.from('products').insert({
-        store_id: store.id,
-        name: newProduct.name,
-        description: newProduct.description,
-        price: parseFloat(newProduct.price),
-        image_url: image_url
-      });
+      if (newProduct.id) {
+        // Update existing product
+        const { error } = await supabase.from('stores_product').update({
+          name: newProduct.name,
+          description: newProduct.description,
+          price: parseFloat(newProduct.price),
+          ...(image_url ? { image_url } : {})
+        }).eq('id', newProduct.id);
 
-      if (error) throw error;
+        if (error) throw error;
+      } else {
+        // Insert new product
+        const { error } = await supabase.from('stores_product').insert({
+          store_id: store.id,
+          user_email: user?.email || '',
+          name: newProduct.name,
+          description: newProduct.description,
+          price: parseFloat(newProduct.price),
+          image_url: image_url
+        });
 
-      setNewProduct({ name: "", description: "", price: "", imageFile: null });
+        if (error) throw error;
+      }
+
+      setNewProduct({ id: "", name: "", description: "", price: "", imageFile: null });
       await fetchStoreData(user.id);
-      alert("Produk berhasil ditambahkan!");
+      toast.success("Produk berhasil ditambahkan!", {
+        description: `${newProduct.name} sekarang tersedia di toko Anda.`
+      });
     } catch (e: any) {
-      alert("Gagal menambah produk: " + e.message);
+      toast.error("Gagal menambah produk", {
+        description: e.message
+      });
     } finally {
       setIsSavingProduct(false);
     }
@@ -457,7 +756,65 @@ const Index = () => {
     }
   };
 
+  const handleUpdateEmail = async () => {
+    if (!newEmail || newEmail === user?.email) return;
+    try {
+      setIsUpdatingEmail(true);
+      const { error } = await supabase.auth.updateUser({ email: newEmail });
+      if (error) throw error;
+      toast.success("Link konfirmasi dikirim", { description: "Cek inbox email baru Anda untuk konfirmasi perubahan." });
+    } catch (e: any) {
+      toast.error("Gagal ganti email", { description: e.message });
+    } finally {
+      setIsUpdatingEmail(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!loginForm.email) {
+      toast.error("Email diperlukan", { description: "Masukkan email di kolom login terlebih dahulu lalu klik ini." });
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(loginForm.email, {
+        redirectTo: window.location.origin,
+      });
+      if (error) throw error;
+      toast.success("Email Reset Password Terkirim", { description: "Cek inbox/spam untuk melanjutkan reset password." });
+    } catch (e: any) {
+      toast.error("Gagal mengirim reset password", { description: e.message });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // ========== SHARED COMPONENTS ==========
+  // Mobile Restriction Component for Authenticated views
+  const mobileRestrictionScreen = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background p-6">
+      <div className="max-w-md w-full p-10 rounded-[30px] bg-gradient-to-tr from-amber-500 to-yellow-500 text-amber-950 text-center shadow-2xl relative overflow-hidden group border-4 border-amber-300">
+        <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-64 h-64 bg-white/20 rounded-full blur-3xl" />
+        <div className="relative z-10 flex flex-col items-center">
+          <div className="w-20 h-20 rounded-full bg-amber-950/10 flex items-center justify-center mb-6 shadow-inner relative overflow-hidden">
+            <Smartphone className="w-10 h-10 text-amber-950 absolute" />
+            <div className="absolute inset-0 bg-white/20 animate-pulse mix-blend-overlay"></div>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-extrabold mb-4 leading-tight">Mobile Only Experience</h2>
+          <p className="font-bold text-amber-950/80 mb-6 text-sm">
+            Aplikasi Editor Website Hanya bisa diakses di Mobile. Silahkan akses via Handphone anda untuk mulai mengelola toko.
+          </p>
+          <div className="flex gap-2 items-center text-xs font-semibold bg-amber-950/10 px-4 py-2 rounded-full">
+            <Lock className="w-4 h-4" /> Akses Desktop Dikunci
+          </div>
+          <button onClick={handleLogout} className="mt-8 text-sm font-bold text-amber-950 hover:underline">
+            ← Logout dari perangkat ini
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   const mobileBottomNav = (
     <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 pb-safe bg-card border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
       <div className="flex items-center justify-around p-2">
@@ -493,6 +850,12 @@ const Index = () => {
       </div>
     </div>
   );
+
+  // Check if user is logged in, not on the homepage, and viewing on desktop
+  const isProtectedView = user && view !== "home" && view !== "login";
+  if (isProtectedView && !isMobile) {
+    return mobileRestrictionScreen;
+  }
 
   // ========== HOME PAGE ==========
   if (view === "home") {
@@ -550,16 +913,11 @@ const Index = () => {
                 <Zap className="w-3 h-3" /> Platform #1 untuk UMKM Indonesia
               </div>
               <h1 className="text-3xl md:text-5xl font-extrabold text-foreground leading-tight mb-4">
-                Buat Website UMKM <span className="text-gradient-hero">Gratis</span> dalam 5 Menit
+                Buat Website UMKM <span className="text-gradient-hero">Gratis</span> dalam 5 Menit via HANDPHONE
               </h1>
               <p className="text-base md:text-lg text-muted-foreground mb-8 leading-relaxed">
-                Daftar, upload produk, langsung terima orderan. Tanpa coding, tanpa ribet. Website profesional untuk bisnis Anda.
+                UMKM elVision adalah spesialisasi Mobile sehingga kamu tidak perlu menyentuh laptop (bahkan tidak bisa karena fitur desktop dikunci). Nikmati simplicity kelola toko langsung dari genggaman tangan, coba deh betapa mudahnya!
               </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <button onClick={() => setView("login")} className="px-10 py-4 rounded-xl bg-cta-gradient text-accent-foreground shadow-card hover:shadow-card-hover transition-all font-bold text-xl">
-                  Mulai Buat Toko — Gratis →
-                </button>
-              </div>
               <div className="flex items-center gap-4 mt-8 text-sm text-muted-foreground">
                 <div className="flex -space-x-2">
                   {["SK", "BE", "DF"].map((a, i) => (
@@ -622,12 +980,6 @@ const Index = () => {
                     </div>
                   </div>
                 ))}
-              </div>
-
-              <div className="mt-12">
-                <button onClick={() => setView("login")} className="px-8 py-4 rounded-xl bg-secondary text-white font-extrabold text-lg shadow-xl hover:-translate-y-1 transition-all">
-                  Mulai Buat Sekarang →
-                </button>
               </div>
             </div>
 
@@ -717,6 +1069,157 @@ const Index = () => {
           </div>
         </section>
 
+        {/* ================= CONTOH TOKO (BUYER VIEW) ================= */}
+        <section id="contoh" className="py-24 relative overflow-hidden bg-muted/20 border-y">
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="text-center mb-16">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-4">
+                <ShoppingCart className="w-3 h-3" /> DEMO PEMBELI
+              </div>
+              <h2 className="text-3xl md:text-5xl font-extrabold text-foreground leading-tight mb-4">
+                Cobain Belanja di <span className="text-primary">Contoh Toko</span>
+              </h2>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Ini adalah halaman yang akan dilihat pelanggan Anda. Coba pilih menu, isi data asal, dan lihat hasil pesanannya (akan terkirim ke WhatsApp Anda nantinya).
+              </p>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-12 items-start">
+              {/* Product Selection */}
+              <div className="bg-card rounded-3xl p-6 shadow-xl border">
+                <h3 className="font-bold text-xl mb-6 flex items-center gap-2 border-b pb-4">
+                  <Package className="w-5 h-5 text-secondary" /> Pilih Produk Demo
+                </h3>
+                <div className="space-y-4">
+                  {mockProducts.map((p) => {
+                    const qty = demoCart[p.id] || 0;
+                    return (
+                      <div
+                        key={p.id}
+                        className={`flex gap-4 p-4 rounded-2xl border-2 transition-all ${qty > 0 ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30 bg-background'}`}
+                      >
+                        <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0">
+                          <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1 flex flex-col justify-between">
+                          <div>
+                            <h4 className="font-bold text-foreground">{p.name}</h4>
+                            <p className="text-xs text-muted-foreground line-clamp-1 mb-1">{p.description}</p>
+                            <p className="font-bold text-secondary text-sm">{formatRp(p.price)}</p>
+                          </div>
+
+                          <div className="flex items-center justify-end gap-3 mt-2">
+                            {qty > 0 ? (
+                              <>
+                                <button className="w-8 h-8 rounded-full bg-background border flex items-center justify-center font-bold text-muted-foreground hover:bg-muted"
+                                  onClick={() => setDemoCart({ ...demoCart, [p.id]: qty - 1 })}>-</button>
+                                <span className="font-bold w-4 text-center">{qty}</span>
+                                <button className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold shadow-sm"
+                                  onClick={() => setDemoCart({ ...demoCart, [p.id]: qty + 1 })}>+</button>
+                              </>
+                            ) : (
+                              <button className="px-4 py-1.5 rounded-full bg-primary/10 text-primary font-bold text-xs hover:bg-primary/20 transition-colors"
+                                onClick={() => setDemoCart({ ...demoCart, [p.id]: 1 })}>Tambah</button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Order Form & Output */}
+              <div className="space-y-6">
+                <div className={`bg-card rounded-3xl p-6 shadow-xl border transition-all duration-300 ${Object.values(demoCart).reduce((a, b) => a + b, 0) === 0 ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <h3 className="font-bold text-xl mb-6 flex items-center gap-2 border-b pb-4">
+                    <Zap className="w-5 h-5 text-primary" /> Lengkapi Data (Asal saja)
+                  </h3>
+
+                  {Object.values(demoCart).reduce((a, b) => a + b, 0) > 0 ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-muted-foreground">Nama Pemesan</label>
+                          <input type="text" placeholder="Budi" className="w-full px-4 py-3 rounded-xl border bg-background text-sm focus:ring-2 focus:ring-primary outline-none"
+                            value={demoOrderForm.nama} onChange={e => setDemoOrderForm({ ...demoOrderForm, nama: e.target.value })} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-muted-foreground">No WhatsApp</label>
+                          <input type="text" placeholder="0812..." className="w-full px-4 py-3 rounded-xl border bg-background text-sm focus:ring-2 focus:ring-primary outline-none"
+                            value={demoOrderForm.wa} onChange={e => setDemoOrderForm({ ...demoOrderForm, wa: e.target.value })} />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-muted-foreground">Metode Pembayaran</label>
+                          <select
+                            className="w-full px-4 py-3 rounded-xl border bg-background text-sm focus:ring-2 focus:ring-primary outline-none appearance-none"
+                            value={demoOrderForm.paymentMethod}
+                            onChange={e => setDemoOrderForm({ ...demoOrderForm, paymentMethod: e.target.value })}
+                          >
+                            <option value="cod">Bayar di Tempat (COD)</option>
+                            <option value="transfer">Transfer Bank (BCA / Mandiri)</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-muted-foreground">Catatan Tambahan</label>
+                          <input type="text" placeholder="Pedesnya dikit..." className="w-full px-4 py-3 rounded-xl border bg-background text-sm focus:ring-2 focus:ring-primary outline-none"
+                            value={demoOrderForm.catatan} onChange={e => setDemoOrderForm({ ...demoOrderForm, catatan: e.target.value })} />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-muted-foreground">Alamat Lengkap (opsional)</label>
+                        <input type="text" placeholder="Jl. Sudirman No 1..." className="w-full px-4 py-3 rounded-xl border bg-background text-sm focus:ring-2 focus:ring-primary outline-none"
+                          value={demoOrderForm.alamat} onChange={e => setDemoOrderForm({ ...demoOrderForm, alamat: e.target.value })} />
+                      </div>
+
+                      <button
+                        onClick={() => setShowDemoOutput(true)}
+                        className="w-full py-4 rounded-xl font-bold bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 mt-4 transition-all"
+                      >
+                        Lihat Output Pesanan
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="py-12 text-center text-muted-foreground">
+                      <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                      <p>Pilih produk di sebelah kiri terlebih dahulu</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Simulated WhatsApp Output */}
+                {showDemoOutput && Object.values(demoCart).reduce((a, b) => a + b, 0) > 0 && (
+                  <div className="bg-[#e5ddd5] rounded-3xl p-6 shadow-xl border border-border/50 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden relative">
+                    <div className="absolute top-0 left-0 right-0 bg-[#075e54] text-white p-3 font-semibold text-sm flex items-center gap-2">
+                      <MessageCircle className="w-4 h-4" /> Simulasi WhatsApp Penjual
+                    </div>
+
+                    <div className="mt-12 bg-white p-4 rounded-b-xl rounded-tr-xl shadow-sm max-w-[90%] text-sm relative">
+                      {/* WA Bubble tail */}
+                      <div className="absolute top-0 -left-2 w-0 h-0 border-t-[0px] border-t-transparent border-r-[10px] border-r-white border-b-[10px] border-b-transparent"></div>
+
+                      <div className="whitespace-pre-wrap text-slate-800 leading-relaxed font-sans">
+                        {generateOrderWaText()}
+                      </div>
+
+                      <div className="text-[10px] text-right text-gray-400 mt-2 flex justify-end items-center gap-1">
+                        12:00 <CheckCircle2 className="w-3 h-3 text-blue-500" />
+                      </div>
+                    </div>
+                    <p className="text-center text-xs text-muted-foreground mt-4 mix-blend-multiply opacity-60">
+                      Pelanggan tidak perlu repot mengetik manual. Format ini otomatis terbuka di WA mereka.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Pricing */}
         <section id="harga" className="py-16 md:py-24 bg-dark-section">
           <div className="max-w-6xl mx-auto px-4">
@@ -783,7 +1286,7 @@ const Index = () => {
                   <h3 className="text-2xl font-extrabold text-foreground mb-2">Mau Buat Sekarang?</h3>
                   <p className="text-muted-foreground mb-8 font-medium">Akses semua fitur di atas dengan mendaftarkan toko Anda.</p>
                   <button onClick={() => setView("login")} className="px-12 py-5 rounded-2xl bg-primary text-primary-foreground font-extrabold text-xl shadow-card hover:shadow-card-hover hover:scale-105 transition-all active:scale-95">
-                    MULAI SEKARANG — SIGN IN
+                    Mulai Sekarang
                   </button>
                 </div>
               </div>
@@ -850,7 +1353,7 @@ const Index = () => {
               <h2 className="text-2xl md:text-3xl font-bold mb-3">Siap Bawa Bisnis Anda Go Online?</h2>
               <p className="text-primary-foreground/70 mb-8 max-w-md mx-auto">Bergabung dengan 2,500+ UMKM yang sudah punya website sendiri. Gratis, tanpa coding.</p>
               <button onClick={() => setView("login")} className="px-10 py-4 rounded-xl bg-cta-gradient text-accent-foreground shadow-card hover:shadow-card-hover transition-all font-bold text-xl inline-block">
-                Mulai Sekarang — Sign in
+                Mulai Sekarang
               </button>
             </div>
           </div>
@@ -877,8 +1380,8 @@ const Index = () => {
 
   const stats = [
     { label: "Total Order", value: orders.length.toString(), icon: Package, change: "", color: "text-secondary" },
-    { label: "Revenue Bulan Ini", value: "Rp 0", icon: DollarSign, change: "", color: "text-success" },
-    { label: "Pengunjung Hari Ini", value: "0", icon: Users, change: "", color: "text-accent" },
+    { label: "Revenue Bulan Ini", value: formatRp(totalRevenue), icon: DollarSign, change: "", color: "text-success" },
+    { label: "Pengunjung Hari Ini", value: pageViews.toString(), icon: Users, change: "", color: "text-accent" },
     { label: "Produk Aktif", value: products.length.toString(), icon: TrendingUp, change: "", color: "text-primary" },
   ];
 
@@ -1005,28 +1508,33 @@ const Index = () => {
       <header className="bg-card border-b sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-accent-gradient flex items-center justify-center text-sm">
-              {store?.logo_url ? <img src={store.logo_url} className="w-full h-full object-cover rounded-lg" alt="logo" /> : '🏪'}
-            </div>
-            <span className="font-bold text-foreground truncate max-w-[150px]">{store?.name || "READY SHOP Warung Sejahtera"}</span>
+            <span className="font-bold text-foreground truncate max-w-[150px]">{store?.name || "Toko Saya"}</span>
           </div>
           <div className="flex items-center gap-3 text-muted-foreground">
-            <a href={`https://wa.me/${store?.wa_number || ''}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-medium hover:text-secondary transition-colors">
+            <a href={`https://wa.me/${formatWaNumber(store?.wa_number || '')}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-medium hover:text-secondary transition-colors">
               <MessageCircle className="w-4 h-4" /> Chat
             </a>
-            <button onClick={() => setView("dashboard")} className="hidden md:block text-xs text-muted-foreground hover:text-foreground">← Kembali</button>
+            {user && (
+              <button onClick={() => setView("dashboard")} className="hidden md:block text-xs text-muted-foreground hover:text-foreground">← Kembali</button>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Store Banner */}
-      <section className="py-10 md:py-16 text-primary-foreground" style={{ backgroundColor: store?.theme_color || '#1E3A5F' }}>
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <div className="text-4xl mb-3">🏪</div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-2">{store?.name || "READY SHOP Warung Sejahtera"}</h1>
-          <div className="flex items-center justify-center gap-4 mt-4 text-xs text-primary-foreground/90">
-            {store?.address && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {store.address}</span>}
-            <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {store?.wa_number || "-"}</span>
+      {/* Store Banner (16:9 Hero Image) */}
+      <section className="relative text-primary-foreground min-h-[300px] md:min-h-[400px] flex items-center justify-center overflow-hidden" style={{ backgroundColor: store?.theme_color || '#1E3A5F' }}>
+        <img
+          src={store?.logo_url || '/default-hero.png'}
+          className="absolute inset-0 w-full h-full object-cover"
+          alt={`${store?.name || 'Toko'} hero`}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+
+        <div className="relative z-10 max-w-4xl mx-auto px-4 text-center mt-auto pb-10">
+          <h1 className="text-3xl md:text-5xl font-extrabold mb-3 text-white drop-shadow-lg">{store?.name || "Toko Saya"}</h1>
+          <div className="flex flex-wrap border border-white/20 bg-black/30 backdrop-blur-md rounded-full py-2 px-6 items-center justify-center gap-4 text-xs md:text-sm text-primary-foreground shadow-xl mx-auto w-fit">
+            {store?.address && <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" /> {store.address}</span>}
+            <span className="flex items-center gap-1.5 border-l border-white/20 pl-4"><Phone className="w-3.5 h-3.5" /> {store?.wa_number || "-"}</span>
           </div>
         </div>
       </section>
@@ -1057,9 +1565,17 @@ const Index = () => {
                     </div>
                     <div className="flex items-center justify-between mt-3">
                       <span className="text-sm font-bold text-secondary">{formatRp(p.price)}</span>
-                      <a href={`https://wa.me/${store?.wa_number || ''}?text=${encodeURIComponent(`Halo, saya ingin order: ${p.name}`)}`} target="_blank" rel="noreferrer" className="text-[10px] font-semibold px-3 py-1.5 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors">
-                        Beli
-                      </a>
+                      {demoCart[p.id.toString()] > 0 ? (
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => setDemoCart({ ...demoCart, [p.id.toString()]: demoCart[p.id.toString()] - 1 })} className="w-8 h-8 rounded-full bg-secondary/10 text-secondary flex items-center justify-center font-bold pb-0.5 hover:bg-secondary/20 transition-colors">-</button>
+                          <span className="font-bold text-sm min-w-[12px] text-center">{demoCart[p.id.toString()]}</span>
+                          <button onClick={() => setDemoCart({ ...demoCart, [p.id.toString()]: demoCart[p.id.toString()] + 1 })} className="w-8 h-8 rounded-full bg-secondary text-white flex items-center justify-center font-bold pb-0.5 hover:bg-secondary/90 transition-colors">+</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setDemoCart({ ...demoCart, [p.id.toString()]: 1 })} className="text-[10px] font-semibold px-3 py-1.5 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors">
+                          Beli
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1091,6 +1607,31 @@ const Index = () => {
                 />
               </div>
             ))}
+            <div className="grid grid-cols-2 gap-3 mb-2">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Metode Pengiriman</label>
+                <select
+                  value={orderForm.deliveryMethod}
+                  onChange={(e) => setOrderForm({ ...orderForm, deliveryMethod: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-lg border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                >
+                  <option value="dikirim">🚚 Dikirim ke Alamat</option>
+                  <option value="ambil">🏪 Ambil di Toko</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Metode Pembayaran</label>
+                <select
+                  value={orderForm.paymentMethod}
+                  onChange={(e) => setOrderForm({ ...orderForm, paymentMethod: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-lg border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                >
+                  <option value="transfer">💳 Rekening Tertuju</option>
+                  <option value="cod">💵 COD (Bayar di Tempat)</option>
+                </select>
+              </div>
+            </div>
+
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Pesan Detail Tambahan</label>
             <textarea
               placeholder="Contoh: Saya ingin order Nasi Goreng Spesial 2 porsi, dikirim ke alamat X..."
@@ -1101,7 +1642,7 @@ const Index = () => {
             />
           </div>
           <a
-            href={`https://wa.me/${store?.wa_number || ''}?text=${encodeURIComponent(`Halo ${store?.name || 'Admin'},\n\nNama: ${orderForm.nama}\nAlamat: ${orderForm.alamat}\n\nPesanan:\n${orderForm.catatan}`)}`}
+            href={`https://wa.me/${formatWaNumber(store?.wa_number || '')}?text=${encodeURIComponent(generateOrderWaText())}`}
             target="_blank"
             rel="noreferrer"
             className="w-full py-3 rounded-xl bg-success/10 border border-success/30 text-success font-semibold text-sm flex items-center justify-center gap-2 hover:bg-success hover:text-white transition-all shadow-sm"
@@ -1157,69 +1698,210 @@ const Index = () => {
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
 
         {/* CAPI Settings */}
-        <div className="bg-card rounded-2xl shadow-sm border p-6">
-          <div className="flex items-center gap-3 border-b pb-4 mb-4">
+        {/* CAPI Settings (LOCKED) */}
+        <div className="bg-card rounded-2xl shadow-sm border p-6 relative overflow-hidden group">
+          <div className="flex items-center gap-3 border-b pb-4 mb-4 opacity-50">
             <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
               <Activity className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h3 className="font-bold text-lg">CAPI Ads Booster</h3>
+              <h3 className="font-bold text-lg flex items-center gap-2">CAPI Ads Booster <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Pro Only</span></h3>
               <p className="text-xs text-muted-foreground">Tingkatkan konversi dengan Conversion API Meta.</p>
             </div>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-4 opacity-50 pointer-events-none">
             <div>
               <label className="text-sm font-semibold text-foreground mb-1 block">CAPI Token</label>
               <input
                 type="text"
                 placeholder="EAAI..."
-                value={storeSettingsForm.capi}
-                onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, capi: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                disabled
+                className="w-full px-4 py-3 rounded-xl border bg-background text-sm text-foreground"
               />
             </div>
-            <button
-              onClick={handleSaveStoreSettings}
-              disabled={isSavingStore}
-              className="w-full py-3 rounded-xl bg-blue-600 text-white font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
-              {isSavingStore ? "Menyimpan..." : "Simpan Konfigurasi CAPI"}
+            <button disabled className="w-full py-3 rounded-xl bg-blue-600 text-white font-bold shadow-sm">
+              Simpan Konfigurasi CAPI
             </button>
+          </div>
+          {/* Lock Overlay */}
+          <div className="absolute inset-0 bg-background/60 backdrop-blur-[1px] flex flex-col items-center justify-center">
+            <div className="bg-card shadow-xl border p-4 rounded-2xl text-center max-w-[200px]">
+              <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <Lock className="w-5 h-5 text-amber-600" />
+              </div>
+              <p className="text-xs font-bold text-foreground mb-1">Fitur Premium</p>
+              <p className="text-[10px] text-muted-foreground mb-3">Upgrade ke PRO untuk membuka akses CAPI.</p>
+              <button onClick={() => setView('profile')} className="w-full py-2 bg-gradient-to-r from-amber-400 to-amber-600 text-white text-[10px] font-bold rounded-lg shadow-sm">
+                Lihat Paket PRO
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Other Tools Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Sosmed Shares */}
-          <div className="bg-card rounded-2xl shadow-sm border p-6 flex flex-col items-center text-center gap-3 hover:border-secondary/30 transition-all cursor-pointer">
+          {/* Sosmed Shares */}
+          <div
+            onClick={async () => {
+              if (!store?.alias) return;
+              const url = `${window.location.origin}/${store.alias}`;
+              if (navigator.share) {
+                try {
+                  await navigator.share({
+                    title: `${store.name} - UMKM Portal`,
+                    text: `Kunjungi toko kami dan lihat katalog produk terbaru di ${store.name}!`,
+                    url: url
+                  });
+                } catch (err) {
+                  console.error("Share failed", err);
+                }
+              } else {
+                navigator.clipboard.writeText(url);
+                toast.success("Link Tersalin!", { description: "Link toko disalin ke clipboard." });
+              }
+            }}
+            className="bg-card rounded-2xl shadow-sm border p-6 flex flex-col items-center text-center gap-3 hover:border-secondary/30 transition-all cursor-pointer"
+          >
             <div className="w-14 h-14 rounded-full bg-pink-100 flex items-center justify-center">
               <Instagram className="w-6 h-6 text-pink-500" />
             </div>
             <div>
               <h4 className="font-bold">Sosmed Shares</h4>
-              <p className="text-xs text-muted-foreground">Bagikan toko langsung ke media sosial.</p>
+              <p className="text-xs text-muted-foreground">Bagikan link toko ke sosmed atau WhatsApp.</p>
             </div>
           </div>
 
           {/* Image Generator */}
-          <div className="bg-card rounded-2xl shadow-sm border p-6 flex flex-col items-center text-center gap-3 hover:border-secondary/30 transition-all cursor-pointer">
-            <div className="w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center">
-              <ImageIcon className="w-6 h-6 text-purple-600" />
+          <div className="bg-card rounded-2xl shadow-sm border overflow-hidden flex flex-col transition-all">
+            <div onClick={() => setIsToolsExpanded(isToolsExpanded === 'ai' ? null : 'ai')} className="p-4 flex flex-col items-center text-center gap-3 cursor-pointer hover:bg-muted/10 relative">
+              <div className="w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center mt-2">
+                <ImageIcon className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <h4 className="font-bold">Nano Banana (AI Banner)</h4>
+                <p className="text-xs text-muted-foreground mb-3">Buat banner toko otomatis dengan AI (OpenRouter).</p>
+                <div className="inline-block px-4 py-1.5 bg-purple-600 text-white font-bold text-xs rounded-full shadow-sm">
+                  Buat Promo Disini ✨
+                </div>
+              </div>
             </div>
-            <div>
-              <h4 className="font-bold">Image Generator</h4>
-              <p className="text-xs text-muted-foreground">Buat banner promosi otomatis dengan AI.</p>
-            </div>
+
+            {isToolsExpanded === 'ai' && (
+              <div className="p-4 bg-muted/20 border-t space-y-4 text-left">
+                <div className="space-y-3">
+                  {/* Optional Image Upload */}
+                  <div>
+                    <label className="text-xs font-semibold text-foreground mb-1 flex items-center justify-between">
+                      <span>Foto Produk Anda (Opsional)</span>
+                      <span className="text-[10px] font-normal text-muted-foreground bg-secondary/10 text-secondary px-2 py-0.5 rounded-full">Background AI</span>
+                    </label>
+                    <div className="relative border-2 border-dashed rounded-xl border-border bg-background hover:bg-muted/30 transition-colors p-3 text-center cursor-pointer overflow-hidden flex flex-col items-center justify-center">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setAiImageRef(file);
+                            setAiImageRefPreview(URL.createObjectURL(file));
+                          }
+                        }}
+                      />
+                      {aiImageRefPreview ? (
+                        <div className="relative w-full h-24 rounded-lg overflow-hidden group">
+                          <img src={aiImageRefPreview} alt="Reference" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="text-xs font-bold text-white mb-1">Ganti Foto</span>
+                          </div>
+                          <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setAiImageRef(null); setAiImageRefPreview(null); }} className="absolute top-1 right-1 w-6 h-6 bg-red-500 rounded-full text-white flex items-center justify-center z-20 hover:bg-red-600">×</button>
+                        </div>
+                      ) : (
+                        <div className="py-2 flex flex-col items-center gap-1 opacity-60">
+                          <ImageIcon className="w-6 h-6" />
+                          <span className="text-xs font-medium">Pilih foto produk (di bawah 1MB)</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-foreground mb-1 block">Deskripsi Banner Impian Anda</label>
+                    <textarea
+                      placeholder="Contoh: Toko kue bolu estetik kekinian dengan tema warna pink pastel dan meja kayu..."
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      rows={4}
+                      className="w-full px-3 py-2 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none leading-relaxed"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleGenerateAiBanner}
+                  disabled={isGeneratingAi || !aiPrompt}
+                  className="w-full py-2.5 rounded-xl bg-purple-600 text-white font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isGeneratingAi ? "Membuat Mahakarya..." : <><Zap className="w-4 h-4 fill-white" /> Generate Banner</>}
+                </button>
+
+                {aiPreviewUrl && (
+                  <div className="pt-4 border-t space-y-3">
+                    <p className="text-xs font-semibold text-center text-muted-foreground">Preview Hasil AI:</p>
+                    <img src={aiPreviewUrl} alt="AI Generated" className="w-full aspect-video object-cover rounded-xl shadow-sm border" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => {
+                          const isBase64 = aiPreviewUrl.startsWith('data:image');
+                          const blob = isBase64 ? base64ToBlob(aiPreviewUrl, 'image/jpeg') : null;
+                          if (blob) {
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = 'Banner-UMKM-AI.jpg';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            window.URL.revokeObjectURL(url);
+                          } else {
+                            window.open(aiPreviewUrl, '_blank');
+                          }
+                        }}
+                        className="py-2.5 rounded-xl border border-secondary text-secondary font-bold text-xs flex items-center justify-center text-center hover:bg-secondary/10 transition-colors"
+                      >
+                        Simpan ke HP
+                      </button>
+                      <button
+                        onClick={handleUseAiBanner}
+                        disabled={isUploadingAi}
+                        className="py-2.5 rounded-xl bg-secondary text-white font-bold text-xs flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-50"
+                      >
+                        {isUploadingAi ? "Menyimpan..." : "Gunakan di Toko"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Education */}
-          <div className="bg-card rounded-2xl shadow-sm border p-6 flex flex-col items-center text-center gap-3 md:col-span-2 hover:border-secondary/30 transition-all cursor-pointer">
-            <div className="w-14 h-14 rounded-full bg-orange-100 flex items-center justify-center">
+          {/* Education (LOCKED) */}
+          <div onClick={() => setView('profile')} className="bg-card rounded-2xl shadow-sm border p-6 flex flex-col items-center text-center gap-3 md:col-span-2 hover:border-amber-300 transition-all cursor-pointer relative overflow-hidden group">
+            <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] z-10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <div className="px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-600 text-white text-xs font-bold rounded-full shadow-lg flex items-center gap-2">
+                <Lock className="w-3 h-3" /> Upgrade to PRO
+              </div>
+            </div>
+            <div className="w-14 h-14 rounded-full bg-orange-100 flex items-center justify-center opacity-70">
               <Zap className="w-6 h-6 text-orange-500" />
             </div>
-            <div>
-              <h4 className="font-bold">Edukasi Jualan Laris</h4>
-              <p className="text-xs text-muted-foreground">Strategi meningkatkan omset dari master UMKM.</p>
+            <div className="opacity-70">
+              <h4 className="font-bold flex justify-center items-center gap-2">
+                Edukasi Jualan Laris <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Pro</span>
+              </h4>
+              <p className="text-xs text-muted-foreground mt-1">Strategi meningkatkan omset dari master UMKM.</p>
             </div>
           </div>
         </div>
@@ -1269,7 +1951,7 @@ const Index = () => {
           <h2 className="text-xl font-bold text-foreground mb-4">Mau Buat Sekarang?</h2>
           <p className="text-sm text-muted-foreground mb-6">Akses semua fitur di atas dengan mendaftarkan toko Anda.</p>
           <button onClick={() => setView("login")} className="w-full py-4 rounded-2xl bg-secondary text-white font-extrabold text-lg shadow-xl hover:-translate-y-1 transition-all active:scale-95">
-            MULAI SEKARANG — SIGN IN
+            Mulai Sekarang
           </button>
         </div>
       </div>
@@ -1294,9 +1976,6 @@ const Index = () => {
 
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
         <div className="bg-card rounded-2xl shadow-sm border p-8 flex flex-col items-center text-center max-w-md mx-auto">
-          <div className="w-24 h-24 rounded-full bg-secondary/10 flex items-center justify-center text-secondary mb-4 border-2 border-secondary/20 shadow-inner">
-            <UserIcon className="w-12 h-12" />
-          </div>
           <h2 className="text-2xl font-bold text-foreground mb-1">{user?.email}</h2>
           <p className="text-sm text-muted-foreground flex items-center gap-1 font-medium bg-muted px-3 py-1 rounded-full">
             <Shield className="w-3 h-3" /> Merchant Verified
@@ -1310,6 +1989,27 @@ const Index = () => {
               <span className="text-sm text-muted-foreground">ID Penjual</span>
               <span className="text-xs font-mono text-foreground truncate max-w-[150px]">{user?.id}</span>
             </div>
+
+            <div className="py-3 border-b border-dashed">
+              <label className="text-sm text-muted-foreground block mb-2">Ubah Email Login</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder={user?.email || "Email baru..."}
+                  className="flex-1 px-3 py-2 rounded-lg border bg-background text-sm"
+                />
+                <button
+                  onClick={handleUpdateEmail}
+                  disabled={isUpdatingEmail || !newEmail}
+                  className="px-3 py-2 bg-secondary text-white rounded-lg text-sm font-bold shadow-sm disabled:opacity-50"
+                >
+                  {isUpdatingEmail ? "..." : "Simpan"}
+                </button>
+              </div>
+            </div>
+
             <div className="flex justify-between items-center py-2 border-b border-dashed">
               <span className="text-sm text-muted-foreground">Nama Toko</span>
               <span className="text-sm font-bold text-foreground">{store?.name || "-"}</span>
@@ -1382,6 +2082,9 @@ const Index = () => {
 
         <div className="mt-6 text-center text-sm text-muted-foreground">
           Belum punya akun? <button onClick={() => setView("create-store")} className="text-secondary font-semibold hover:underline">Register disini</button>
+          <div className="mt-3 border-t border-border/50 pt-3">
+            Lupa Password? <button onClick={handleForgotPassword} className="text-destructive font-semibold hover:underline ml-1">Reset Via Email</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1390,12 +2093,14 @@ const Index = () => {
   const createStoreContent = (
     <div className="min-h-screen bg-muted/30 pb-24 md:pb-12 pt-8 px-4">
       <div className="max-w-2xl mx-auto">
-        <div className="mb-8 relative">
-          <button onClick={() => setView("home")} className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-muted transition-colors">
+        <div className="mb-8 flex items-center gap-4 border-b border-border/50 pb-4">
+          <button onClick={() => setView("home")} className="p-3 bg-card border rounded-xl shadow-sm hover:bg-muted transition-colors shrink-0">
             <ArrowLeft className="w-5 h-5 text-muted-foreground" />
           </button>
-          <h1 className="text-2xl font-bold text-foreground text-center">Buat Toko Online Anda</h1>
-          <p className="text-sm text-muted-foreground mt-2 text-center">Isi detail di bawah untuk membuat website khusus toko Anda. (Bisa diedit nanti)</p>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground text-left">Buat Toko Online</h1>
+            <p className="text-xs text-muted-foreground mt-1 text-left">Lengkapi detail untuk membuat website toko.</p>
+          </div>
         </div>
         {errorMsg && (
           <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm rounded-lg text-center animate-in fade-in slide-in-from-bottom-2">
@@ -1630,27 +2335,102 @@ const Index = () => {
                 />
               </div>
               <div>
-                <label className="text-sm font-semibold text-foreground mb-1 block">Web URL (Alias)</label>
+                <label className="text-sm font-semibold text-foreground mb-1 block">Nomor WhatsApp Toko</label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">/</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">+62</span>
                   <input
-                    type="text"
-                    value={storeSettingsForm.alias}
-                    onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, alias: e.target.value })}
-                    className="w-full pl-8 pr-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                    type="tel"
+                    value={storeSettingsForm.waNumber}
+                    onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, waNumber: e.target.value })}
+                    className="w-full pl-12 pr-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
                   />
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Ubah alias url untuk toko Anda.</p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-foreground mb-1 block">Logo URL (Preview Image)</label>
+                <label className="text-sm font-semibold text-foreground mb-1 block">Web URL (Alias)</label>
+                {store?.alias ? (
+                  <div className="w-full px-4 py-3 rounded-xl border bg-muted/30 text-sm text-foreground flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-muted-foreground">umkm.elvisiongroup.com/</span>
+                    <span className="font-bold text-foreground">{storeSettingsForm.alias}</span>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">/</span>
+                    <input
+                      type="text"
+                      value={storeSettingsForm.alias}
+                      onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, alias: e.target.value })}
+                      className="w-full pl-8 pr-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                    />
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">URL publik untuk toko Anda. *hanya bisa diganti 1x</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-foreground mb-1 block">Rekening Pembayaran (BCA/Mandiri dll)</label>
+                  <input
+                    type="text"
+                    value={storeSettingsForm.payment}
+                    onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, payment: e.target.value })}
+                    placeholder="Contoh: BCA 12345678 a/n Budi"
+                    className="w-full px-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Ini akan ditampilkan ke pembeli saat checkout.</p>
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-foreground mb-1 block">Alamat Toko</label>
+                  <input
+                    type="text"
+                    value={storeSettingsForm.address}
+                    onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, address: e.target.value })}
+                    placeholder="Contoh: Jl. Sudirman No 42"
+                    className="w-full px-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-semibold text-foreground mb-2 block">Logo / Hero Banner (16:9)</label>
+                <div
+                  onClick={() => document.getElementById('logo-upload-input')?.click()}
+                  className="w-full h-48 rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/10 flex flex-col items-center justify-center cursor-pointer hover:border-secondary/50 hover:bg-secondary/5 transition-all overflow-hidden relative"
+                >
+                  {logoPreview ? (
+                    <img src={logoPreview} alt="Logo Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <>
+                      <UploadCloud className="w-8 h-8 text-muted-foreground mb-2" />
+                      <span className="text-sm text-muted-foreground font-medium">Klik untuk upload Banner Toko</span>
+                      <span className="text-xs text-muted-foreground/60 mt-1">Disarankan ukuran Horizontal 16:9</span>
+                    </>
+                  )}
+                </div>
                 <input
-                  type="text"
-                  placeholder="https://... (URL gambar logo toko)"
-                  value={storeSettingsForm.logo_url}
-                  onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, logo_url: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                  id="logo-upload-input"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setLogoFile(file);
+                      const reader = new FileReader();
+                      reader.onloadend = () => setLogoPreview(reader.result as string);
+                      reader.readAsDataURL(file);
+                    }
+                  }}
                 />
+                {logoPreview && (
+                  <button
+                    type="button"
+                    onClick={() => { setLogoFile(null); setLogoPreview(null); setStoreSettingsForm({ ...storeSettingsForm, logo_url: "" }); }}
+                    className="text-xs text-destructive mt-2 hover:underline"
+                  >
+                    Hapus Logo
+                  </button>
+                )}
               </div>
               <button
                 onClick={handleSaveStoreSettings}
@@ -1666,9 +2446,20 @@ const Index = () => {
           <div className="pt-6 border-t">
             <h3 className="text-lg font-bold text-foreground border-b pb-2 mb-4">Kelola Produk</h3>
             <div className="space-y-4">
-              {/* New Product Form */}
-              <div className="p-4 rounded-xl border bg-muted/20 space-y-4 mb-6">
-                <h4 className="font-semibold text-sm">Tambah Produk Baru</h4>
+              {/* New/Edit Product Form */}
+              <div className="p-4 rounded-xl border bg-muted/20 space-y-4 mb-6 relative">
+                <h4 className="font-semibold text-sm">{newProduct.id ? "Edit Produk" : "Tambah Produk Baru"}</h4>
+                {newProduct.id && (
+                  <button
+                    onClick={() => {
+                      setNewProduct({ id: "", name: "", description: "", price: "", imageFile: null });
+                      setProductImagePreview(null);
+                    }}
+                    className="absolute top-4 right-4 text-xs font-bold text-muted-foreground hover:text-foreground"
+                  >
+                    Batal Edit
+                  </button>
+                )}
                 <div className="flex flex-col gap-3">
                   <input
                     type="text"
@@ -1693,18 +2484,46 @@ const Index = () => {
                   className="w-full px-3 py-3 rounded-xl border bg-background text-sm mt-3 focus:ring-2 focus:ring-secondary/50 focus:outline-none"
                 />
                 <div className="flex flex-col gap-3">
+                  {/* Image Upload with Preview */}
+                  <div
+                    onClick={() => document.getElementById('product-image-input')?.click()}
+                    className="w-full h-32 rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/10 flex flex-col items-center justify-center cursor-pointer hover:border-secondary/50 hover:bg-secondary/5 transition-all overflow-hidden"
+                  >
+                    {productImagePreview ? (
+                      <img src={productImagePreview} alt="Preview" className="w-full h-full object-contain p-2" />
+                    ) : (
+                      <>
+                        <ImageIcon className="w-6 h-6 text-muted-foreground mb-1" />
+                        <span className="text-xs text-muted-foreground font-medium">Klik untuk pilih foto produk</span>
+                      </>
+                    )}
+                  </div>
                   <input
+                    id="product-image-input"
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setNewProduct({ ...newProduct, imageFile: e.target.files?.[0] || null })}
-                    className="text-xs w-full p-2 border rounded-lg bg-background"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setNewProduct({ ...newProduct, imageFile: file });
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => setProductImagePreview(reader.result as string);
+                        reader.readAsDataURL(file);
+                      } else {
+                        setProductImagePreview(null);
+                      }
+                    }}
                   />
                   <button
-                    onClick={handleSaveProduct}
+                    onClick={async () => {
+                      await handleSaveProduct();
+                      setProductImagePreview(null);
+                    }}
                     disabled={isSavingProduct || !newProduct.name || !newProduct.price}
                     className="w-full px-4 py-3 rounded-xl bg-secondary text-white text-sm font-bold shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity"
                   >
-                    {isSavingProduct ? "Menyimpan..." : "Tambah Produk"}
+                    {isSavingProduct ? "Menyimpan..." : (newProduct.id ? "Simpan Perubahan Produk" : "Tambah Produk")}
                   </button>
                 </div>
               </div>
@@ -1720,9 +2539,35 @@ const Index = () => {
                       <h4 className="font-bold text-sm truncate">{p.name}</h4>
                       <span className="text-secondary font-bold text-xs">{formatRp(p.price)}</span>
                     </div>
-                    <button className="p-2 text-destructive hover:bg-destructive/10 rounded-lg">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          setNewProduct({
+                            id: p.id,
+                            name: p.name,
+                            description: p.description || "",
+                            price: p.price.toString(),
+                            imageFile: null
+                          });
+                          setProductImagePreview(p.image_url);
+                          window.scrollTo({ top: document.body.scrollHeight / 2, behavior: 'smooth' });
+                        }}
+                        className="p-2 text-blue-500 hover:bg-blue-500/10 rounded-lg"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (confirm('Yakin ingin menghapus produk ini?')) {
+                            const { error } = await supabase.from('stores_product').delete().eq('id', p.id);
+                            if (!error) fetchStoreData(user.id);
+                          }
+                        }}
+                        className="p-2 text-destructive hover:bg-destructive/10 rounded-lg"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1786,6 +2631,17 @@ const Index = () => {
           {profileContent}
         </div>
         {mobileBottomNav}
+      </div>
+    );
+  }
+
+  if (view === "live-store") {
+    // Determine data to show (Real data only)
+    return (
+      <div className="min-h-screen pb-20 md:pb-0 relative bg-muted/30">
+        <div className="max-w-md mx-auto min-h-screen bg-card shadow-xl overflow-hidden">
+          {storeContent}
+        </div>
       </div>
     );
   }
