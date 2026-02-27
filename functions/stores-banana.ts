@@ -13,11 +13,13 @@ serve(async (req) => {
     try {
         console.log("Receiving Nano Banana Request...");
         const { prompt, imageBase64 } = await req.json()
-        const openRouterApiKey = Deno.env.get("OPENROUTER_APIKEY") // Set in Supabase Secrets
+        // Hardcoded API Keys
+        const openRouterApiKey = "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";
+        const geminiKey2 = "AIzaSyCsOMP4xV4wwkbRbotViXuP_muIXYjiNX8";
 
-        if (!openRouterApiKey) {
-            console.error("CRITICAL: Missing OPENROUTER_APIKEY environment variable.");
-            throw new Error("Missing OPENROUTER_APIKEY secret in Supabase")
+        if (!openRouterApiKey && !geminiKey2) {
+            console.error("CRITICAL: Missing OPENROUTER_APIKEY and GEMINI_KEY_2 variables.");
+            throw new Error("Missing API keys for AI generator")
         }
 
         const systemPrompt = `Generate a beautiful e-commerce banner. Focus on vibrant, professional aesthetics. The user's specific requirement is: ${prompt}`;
@@ -49,7 +51,7 @@ serve(async (req) => {
                     content: messageContent
                 }]
             })
-        })
+        });
 
         const rawText = await response.text();
 
@@ -75,7 +77,7 @@ serve(async (req) => {
             throw new Error(data.error?.message || "OpenRouter Request Failed");
         }
 
-        console.log("OpenRouter Parsed Successfully. Choices count:", data.choices?.length);
+        console.log("Payload Parsed Successfully. Choices count:", data.choices?.length);
 
         // Helper functions copied from 'photo' project for robust image extraction
         function isHttpUrl(val: any) { return typeof val === 'string' && /^https?:\/\//i.test(val); }
