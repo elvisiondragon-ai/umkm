@@ -2378,12 +2378,32 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                       </div>
                       <button
                         onClick={() => {
-                          const url = `${window.location.origin}/${store.alias}`;
-                          navigator.clipboard.writeText(url);
-                          toast.success("Link Toko Tersalin!", { description: "Bagikan link ini ke pelanggan Anda." });
+                          const url = `https://umkm.elvisiongroup.com/${storeSettingsForm.alias}`;
+
+                          const handleSuccess = () => toast.success("Link Tersalin ke Clipboard! 🚀", { description: url });
+                          const handleError = () => toast.error("Gagal menyalin link.");
+
+                          if (navigator.clipboard && window.isSecureContext) {
+                            navigator.clipboard.writeText(url)
+                              .then(handleSuccess)
+                              .catch(handleError);
+                          } else {
+                            // Fallback for non-HTTPS local networks (Mobile preview)
+                            const textArea = document.createElement("textarea");
+                            textArea.value = url;
+                            document.body.appendChild(textArea);
+                            textArea.select();
+                            try {
+                              document.execCommand('copy');
+                              handleSuccess();
+                            } catch (err) {
+                              handleError();
+                            }
+                            document.body.removeChild(textArea);
+                          }
                         }}
-                        className="p-2 -mr-2 bg-secondary/10 text-secondary hover:bg-secondary hover:text-white rounded-lg transition-colors shrink-0 flex items-center gap-1"
-                        title="Copy URL Toko"
+                        className="p-2 -mr-2 bg-secondary/10 text-secondary hover:bg-secondary hover:text-white rounded-lg transition-colors shrink-0 flex items-center gap-1 z-10"
+                        title="Copy Penuh URL Toko"
                         type="button"
                       >
                         <Copy className="w-4 h-4" />

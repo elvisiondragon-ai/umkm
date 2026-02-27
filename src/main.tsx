@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-const APP_VERSION = '2026.02.27.01'; // <-- Change this number to force an update
+const APP_VERSION = '2026.02.27.02'; // <-- Change this number to force an update
 
 if (localStorage.getItem('v_cache') !== APP_VERSION) {
     // 1. Clear all Service Workers
@@ -23,5 +23,8 @@ if (localStorage.getItem('v_cache') !== APP_VERSION) {
     localStorage.setItem('v_cache', APP_VERSION);
     window.location.reload();
 }
+
+// Set title dynamically so WhatsApp crawler misses it but browsers show it
+document.title = "UMKM eL Vision";
 
 createRoot(document.getElementById("root")!).render(<App />);
