@@ -97,6 +97,16 @@ const SAMPLE_ORDERS: Order[] = [
 // ==================== HELPERS ====================
 const formatRp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
 
+// Helper to format string input to Rupiah number string (e.g. "20000" -> "20.000")
+const formatInputRp = (val: string | number) => {
+  if (!val) return "";
+  const num = val.toString().replace(/\D/g, "");
+  return num.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+};
+
+// Helper to strip formatted strings back to raw number strings
+const parseRp = (val: string) => val.replace(/\D/g, "");
+
 // Helper to compress image
 const compressImage = async (file: File, maxWidth = 800, maxFileKB = 100): Promise<File> => {
   try {
@@ -641,19 +651,19 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
         const { data: publicUrlData } = supabase.storage.from('Stores').getPublicUrl(fileName);
         finalLogoUrl = publicUrlData.publicUrl;
 
-        // Auto-delete old logo from bucket 
+        // Auto-delete old logo from bucket (Non-blocking)
         if (store.logo_url && store.logo_url !== '/default-hero.png') {
           try {
             const urlObj = new URL(store.logo_url);
             if (urlObj.pathname.includes('/public/Stores/')) {
               const oldPath = urlObj.pathname.split('/public/Stores/')[1];
-              if (oldPath) await supabase.storage.from('Stores').remove([decodeURIComponent(oldPath)]);
+              if (oldPath) await supabase.storage.from('Stores').remove([decodeURIComponent(oldPath)]).catch(() => { });
             } else if (urlObj.pathname.includes('/public/stores_banana/')) {
               const oldPath = urlObj.pathname.split('/public/stores_banana/')[1];
-              if (oldPath) await supabase.storage.from('stores_banana').remove([decodeURIComponent(oldPath)]);
+              if (oldPath) await supabase.storage.from('stores_banana').remove([decodeURIComponent(oldPath)]).catch(() => { });
             }
           } catch (e) {
-            console.error("Failed to delete old banner:", e);
+            console.warn("Non-fatal: Failed to delete old banner:", e);
           }
         }
       }
@@ -1705,9 +1715,16 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
 
         {/* CAPI Settings */}
-        {/* CAPI Settings (LOCKED) */}
-        <div className="bg-card rounded-2xl shadow-sm border p-6 relative overflow-hidden group">
-          <div className="flex items-center gap-3 border-b pb-4 mb-4 opacity-50">
+        {/* CAPI Settings (LOCKED visually but clickable) */}
+        <div
+          onClick={() => {
+            toast("Fitur Premium 🌟", {
+              description: "Maaf Fitur ini untuk akun Pro.",
+            });
+          }}
+          className="bg-card rounded-2xl shadow-sm border p-6 relative overflow-hidden group cursor-pointer hover:border-amber-400 transition-colors"
+        >
+          <div className="flex items-center gap-3 border-b pb-4 mb-4">
             <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
               <Activity className="w-5 h-5 text-blue-600" />
             </div>
@@ -1729,19 +1746,6 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
             <button disabled className="w-full py-3 rounded-xl bg-blue-600 text-white font-bold shadow-sm">
               Simpan Konfigurasi CAPI
             </button>
-          </div>
-          {/* Lock Overlay */}
-          <div className="absolute inset-0 bg-background/60 backdrop-blur-[1px] flex flex-col items-center justify-center">
-            <div className="bg-card shadow-xl border p-4 rounded-2xl text-center max-w-[200px]">
-              <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                <Lock className="w-5 h-5 text-amber-600" />
-              </div>
-              <p className="text-xs font-bold text-foreground mb-1">Fitur Premium</p>
-              <p className="text-[10px] text-muted-foreground mb-3">Upgrade ke PRO untuk membuka akses CAPI.</p>
-              <button onClick={() => setView('profile')} className="w-full py-2 bg-gradient-to-r from-amber-400 to-amber-600 text-white text-[10px] font-bold rounded-lg shadow-sm">
-                Lihat Paket PRO
-              </button>
-            </div>
           </div>
         </div>
 
@@ -1893,20 +1897,21 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
             )}
           </div>
 
-          {/* Education */}
-          {/* Education (LOCKED) */}
-          <div onClick={() => setView('profile')} className="bg-card rounded-2xl shadow-sm border p-6 flex flex-col items-center text-center gap-3 md:col-span-2 hover:border-amber-300 transition-all cursor-pointer relative overflow-hidden group">
-            <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] z-10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <div className="px-4 py-2 bg-gradient-to-r from-amber-400 to-amber-600 text-white text-xs font-bold rounded-full shadow-lg flex items-center gap-2">
-                <Lock className="w-3 h-3" /> Upgrade to PRO
-              </div>
-            </div>
-            <div className="w-14 h-14 rounded-full bg-orange-100 flex items-center justify-center opacity-70">
+          {/* Education (LOCKED visually but clickable) */}
+          <div
+            onClick={() => {
+              toast("Fitur Premium 🌟", {
+                description: "Maaf Fitur ini untuk akun Pro.",
+              });
+            }}
+            className="bg-card rounded-2xl shadow-sm border p-6 flex flex-col items-center text-center gap-3 md:col-span-2 hover:border-amber-400 transition-colors cursor-pointer"
+          >
+            <div className="w-14 h-14 rounded-full bg-orange-100 flex items-center justify-center">
               <Zap className="w-6 h-6 text-orange-500" />
             </div>
-            <div className="opacity-70">
+            <div>
               <h4 className="font-bold flex justify-center items-center gap-2">
-                Edukasi Jualan Laris <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Pro</span>
+                Edukasi Jualan Laris <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Pro Only</span>
               </h4>
               <p className="text-xs text-muted-foreground mt-1">Strategi meningkatkan omset dari master UMKM.</p>
             </div>
@@ -2033,7 +2038,14 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-md mx-auto">
-          <button className="col-span-1 md:col-span-2 p-4 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-600 text-white font-bold shadow-lg flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+          <button
+            onClick={() => {
+              toast("Informasi Langganan 🌟", {
+                description: "Untuk saat ini Pro belum tersedia dan full Free.",
+              });
+            }}
+            className="col-span-1 md:col-span-2 p-4 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-600 text-white font-bold shadow-lg flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+          >
             <Star className="w-5 h-5 fill-white" /> UPGRADE TO PRO
           </button>
         </div>
@@ -2233,12 +2245,13 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                       <div>
                         <label className="text-xs font-semibold text-muted-foreground mb-1 block">Harga (Rp)</label>
                         <input
-                          type="number"
-                          placeholder="25000"
-                          value={p.price}
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="25.000"
+                          value={formatInputRp(p.price)}
                           onChange={(e) => {
                             const newProducts = [...setupForm.products];
-                            newProducts[index].price = e.target.value;
+                            newProducts[index].price = parseRp(e.target.value);
                             setSetupForm({ ...setupForm, products: newProducts });
                           }}
                           className="w-full px-3 py-2 rounded-lg border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
@@ -2357,11 +2370,11 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                 <label className="text-sm font-semibold text-foreground mb-1 block">Web URL (Alias)</label>
                 {store?.alias ? (
                   <div className="flex flex-col gap-2">
-                    <div className="w-full px-4 py-3 rounded-xl border bg-muted/30 text-sm text-foreground flex items-center justify-between gap-2 overflow-hidden">
-                      <div className="flex items-center gap-2 truncate">
-                        <Lock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                        <span className="text-muted-foreground truncate hidden md:inline">umkm.elvisiongroup.com/</span>
-                        <span className="font-bold text-foreground truncate">{storeSettingsForm.alias}</span>
+                    <div className="w-full px-3 py-3 rounded-xl border bg-muted/30 text-[11px] md:text-sm text-foreground flex items-center justify-between gap-2 overflow-x-auto">
+                      <div className="flex items-center gap-1.5 whitespace-nowrap">
+                        <Lock className="w-4 h-4 text-muted-foreground shrink-0 hidden sm:block" />
+                        <span className="text-muted-foreground">umkm.elvisiongroup.com/</span>
+                        <span className="font-bold text-foreground bg-amber-100 text-amber-950 px-1 rounded">{storeSettingsForm.alias}</span>
                       </div>
                       <button
                         onClick={() => {
@@ -2496,10 +2509,11 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                     className="w-full px-3 py-3 rounded-xl border bg-background text-sm focus:ring-2 focus:ring-secondary/50 focus:outline-none"
                   />
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     placeholder="Harga (Rp)"
-                    value={newProduct.price}
-                    onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                    value={formatInputRp(newProduct.price)}
+                    onChange={(e) => setNewProduct({ ...newProduct, price: parseRp(e.target.value) })}
                     className="w-full px-3 py-3 rounded-xl border bg-background text-sm focus:ring-2 focus:ring-secondary/50 focus:outline-none"
                   />
                 </div>
@@ -2542,17 +2556,18 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                       }
                     }}
                   />
-                  <button
-                    onClick={async () => {
-                      await handleSaveProduct();
-                      setProductImagePreview(null);
-                    }}
-                    disabled={isSavingProduct || !newProduct.name || !newProduct.price}
-                    className="w-full px-4 py-3 rounded-xl bg-secondary text-white text-sm font-bold shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity"
-                  >
-                    {isSavingProduct ? "Menyimpan..." : (newProduct.id ? "Simpan Perubahan Produk" : "Tambah Produk")}
-                  </button>
                 </div>
+
+                <button
+                  onClick={async () => {
+                    await handleSaveProduct();
+                    setProductImagePreview(null);
+                  }}
+                  disabled={isSavingProduct || !newProduct.name || !newProduct.price}
+                  className="w-full px-4 py-3 rounded-xl bg-secondary text-white text-sm font-bold shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity mt-2"
+                >
+                  {isSavingProduct ? "Menyimpan..." : (newProduct.id ? "Simpan Perubahan Produk" : "Tambah Produk")}
+                </button>
               </div>
 
               {/* Existing Products List */}

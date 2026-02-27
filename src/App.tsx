@@ -27,7 +27,22 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
-      <Sonner />
+      <Sonner
+        position="top-center"
+        expand={false}
+        toastOptions={{
+          style: {
+            background: 'linear-gradient(135deg, #FFFEFA 0%, #FFF9E6 50%, #F5E6A1 100%)',
+            border: '1px solid #E5C158',
+            color: '#8B6508',
+            boxShadow: '0 8px 24px rgba(218, 165, 32, 0.2)',
+            fontWeight: '600',
+            borderRadius: '16px',
+            padding: '16px'
+          },
+          className: 'gold-toast'
+        }}
+      />
       <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
