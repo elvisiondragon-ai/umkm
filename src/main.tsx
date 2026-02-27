@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-const APP_VERSION = '2026.02.27.06'; // <-- Change this number to force an update
+const APP_VERSION = '2026.02.27.08'; // <-- Change this number to force an update
 
 // Execute aggressive cache clearing before React mounts if versions mismatch
 if (localStorage.getItem('v_cache') !== APP_VERSION) {
@@ -33,7 +33,7 @@ if (localStorage.getItem('v_cache') !== APP_VERSION) {
         // We force a hard reload via true parameter, 
         // wrapped in timeout to allow SW unregistration.
         setTimeout(() => {
-            window.location.reload(true as any); // cast to any for older standard support
+            (window.location as any).reload(true); // cast to any to force bypass cache
         }, 500);
     } else {
         // Android Chrome is compliant but aggressive. 

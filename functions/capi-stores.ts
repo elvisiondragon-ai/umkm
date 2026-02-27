@@ -39,6 +39,20 @@ serve(async (req) => {
         const ACCESS_TOKEN = store.capi
         const TEST_EVENT_CODE = store.test_event_code
 
+        // Always save the order to the database first, regardless of CAPI status
+        try {
+            await supabase.from('stores_orders').insert({
+                store_id: store_id,
+                customer: customer_name ? `${customer_name} (${customer_wa})` : (order_id || "Guest"),
+                items: items_summary || "Order via WhatsApp Checkout",
+                total_amount: value,
+                status: "baru", // changed from Pending to match frontend status literal 'baru'
+                date: new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })
+            })
+        } catch (dbErr) {
+            console.error("Failed to insert order to DB (Non-fatal):", dbErr);
+        }
+
         // If the seller hasn't configured CAPI, just return gracefully
         if (!PIXEL_ID || !ACCESS_TOKEN) {
             return new Response(JSON.stringify({
@@ -98,19 +112,6 @@ serve(async (req) => {
         if (!metaResponse.ok) {
             console.error("Meta API Error:", metaResult)
             throw new Error(`Meta API Error: ${JSON.stringify(metaResult)}`)
-        }
-
-        try {
-            await supabase.from('orders').insert({
-                store_id: store_id,
-                customer: customer_name ? `${customer_name} (${customer_wa})` : (order_id || "Guest"),
-                items: items_summary || "Order via WhatsApp Checkout",
-                total_amount: value,
-                status: "Pending",
-                date: new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })
-            })
-        } catch (dbErr) {
-            console.error("Failed to insert order to DB (Non-fatal):", dbErr);
         }
 
         return new Response(JSON.stringify({

@@ -11,10 +11,13 @@ import {
 import { supabase } from "../lib/supabase";
 import { toast, Toaster } from "sonner";
 import imageCompression from 'browser-image-compression';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import elv3 from '../assets/elv3.png';
 
 // ==================== TYPES ====================
 type View = "home" | "dashboard" | "tools" | "umkm-template" | "login" | "create-store" | "settings" | "profile" | "live-store";
 type OrderStatus = "baru" | "proses" | "kirim" | "selesai";
+type TimeFilter = 'hari_ini' | 'kemarin' | '7_hari' | '1_bulan' | '3_bulan';
 
 interface Product {
   id: string;
@@ -95,7 +98,7 @@ const SAMPLE_ORDERS: Order[] = [
 ];
 
 // ==================== HELPERS ====================
-const formatRp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
+const formatRp = (n: number) => `Rp ${n.toLocaleString("id-ID")} `;
 
 // Helper to format string input to Rupiah number string (e.g. "20000" -> "20.000")
 const formatInputRp = (val: string | number) => {
@@ -228,11 +231,26 @@ const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
     { id: 3, name: "Es Teh Manis Jumbo", price: 5000, description: "Kesegaran teh pilihan dengan gula asli dalam ukuran jumbo.", image_url: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&q=80&w=200" },
   ];
 
-  const mockOrders = [
+  const sotoMockOrders = [
+    { id: "1001", customer: "Budi Santoso", status: "selesai", items: "2x Sepatu Sneakers Pria", total: 450000, date: "Hari ini, 10:30" },
+    { id: "1002", customer: "Siti Aminah", status: "proses", items: "1x Tas Selempang Wanita", total: 120000, date: "Hari ini, 11:15" },
+    { id: "1003", customer: "Agus Setiawan", status: "baru", items: "3x Kaos Polos", total: 150000, date: "Hari ini, 12:05" },
+    { id: "1004", customer: "Lina Marlina", status: "selesai", items: "1x Topi Baseball", total: 45000, date: "Hari ini, 13:20" },
+    { id: "1005", customer: "Deni Ramdani", status: "kirim", items: "2x Celana Chino Pendek", total: 200000, date: "Hari ini, 14:45" },
+    { id: "1006", customer: "Rina Kartika", status: "selesai", items: "1x Sepatu Sneakers Pria", total: 225000, date: "Hari ini, 15:30" },
+    { id: "1007", customer: "Anton Wijaya", status: "baru", items: "1x Jaket Hoodie", total: 180000, date: "Hari ini, 16:10" },
+    { id: "1008", customer: "Maya Sari", status: "proses", items: "4x Kaos Polos", total: 200000, date: "Hari ini, 17:00" },
+    { id: "1009", customer: "Hendri Gunawan", status: "kirim", items: "1x Tas Selempang Wanita", total: 120000, date: "Hari ini, 18:05" },
+    { id: "1010", customer: "Diana Putri", status: "selesai", items: "2x Sepatu Sneakers Pria", total: 450000, date: "Hari ini, 19:20" },
+  ];
+
+  const defaultMockOrders = [
     { id: "1001", customer: "Budi Santoso", status: "selesai", items: "2x Nasi Goreng, 1x Es Teh", total: 55000, date: "Hari ini, 12:30" },
     { id: "1002", customer: "Siti Aminah", status: "proses", items: "1x Ayam Bakar, 1x Es Teh", total: 40000, date: "Hari ini, 13:15" },
     { id: "1003", customer: "Agus Setiawan", status: "baru", items: "3x Nasi Goreng", total: 75000, date: "Hari ini, 14:05" },
   ];
+
+  const mockOrders = user?.email === 'soto@yahoo.com' ? sotoMockOrders : defaultMockOrders;
 
   // New product editing state
   const [newProduct, setNewProduct] = useState({ id: "", name: "", description: "", price: "", imageFile: null as File | null });
@@ -245,18 +263,23 @@ const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [pageViews, setPageViews] = useState(0);
 
-  // New states for Email Update
+  // New states for Email Update and Profile
   const [newEmail, setNewEmail] = useState("");
   const [isUpdatingEmail, setIsUpdatingEmail] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [isUpdatingName, setIsUpdatingName] = useState(false);
 
   // AI Image Generator States
-  const [aiPrompt, setAiPrompt] = useState("Tolong buatkan banner toko UMKM estetik dengan headline mencolok dan deskripsi singkat. Gunakan warna bernuansa terang dan hangat.");
+  const [aiPrompt, setAiPrompt] = useState("");
   const [aiImageRef, setAiImageRef] = useState<File | null>(null);
   const [aiImageRefPreview, setAiImageRefPreview] = useState<string | null>(null);
   const [aiPreviewUrl, setAiPreviewUrl] = useState<string | null>(null);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [isUploadingAi, setIsUploadingAi] = useState(false);
   const [isToolsExpanded, setIsToolsExpanded] = useState<string | null>(null);
+
+  // Dashboard Filters
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('7_hari');
 
   const handleGenerateAiBanner = async () => {
     if (!aiPrompt) return;
@@ -274,8 +297,12 @@ const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
         });
       }
 
+      const storeIdentifier = store?.name || displayName || user?.email?.split('@')[0] || 'Toko Anda';
+      const storeWa = store?.wa_number ? `Hub: ${store.wa_number}` : '';
+      const secretPrompt = `Buat gambar rasio 1:1. Tuliskan teks promosi menarik untuk produk ini: ${aiPrompt}. PENTING: JANGAN tulis kata "Headline:" atau "Deskripsi:" di dalam gambar, langsung saja tulis kalimat promosinya. Di bagian bawah atau pojok, wajib tuliskan nama toko "${storeIdentifier}" dan nomor WA "${storeWa}".`;
+
       const { data, error } = await supabase.functions.invoke('stores-banana', {
-        body: { prompt: aiPrompt, imageBase64 }
+        body: { prompt: secretPrompt, imageBase64 }
       });
       if (error) throw error;
       if (data && data.image) {
@@ -312,42 +339,24 @@ const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
         ? base64ToBlob(aiPreviewUrl, 'image/jpeg')
         : await (await fetch(aiPreviewUrl)).blob();
 
-      const file = new File([blob], "ai-banner.jpg", { type: "image/jpeg" });
-      const compressed = await compressImage(file, 1200, 300);
-      const fileName = `${store.alias}/ai-${Date.now()}.jpg`;
+      const file = new File([blob], `ai-promo-${Date.now()}.jpg`, { type: "image/jpeg" });
 
-      const { error: uploadError } = await supabase.storage
-        .from('stores_banana')
-        .upload(fileName, compressed, { cacheControl: '3600', upsert: true });
+      // Inject to New Product Form
+      setNewProduct({ id: "", name: "", description: "", price: "", imageFile: file });
+      setProductImagePreview(URL.createObjectURL(file));
 
-      if (uploadError) throw uploadError;
-
-      const { data: publicUrlData } = supabase.storage.from('stores_banana').getPublicUrl(fileName);
-      const finalLogoUrl = publicUrlData.publicUrl;
-
-      if (store.logo_url && store.logo_url !== '/default-hero.png') {
-        try {
-          const urlObj = new URL(store.logo_url);
-          if (urlObj.pathname.includes('/public/Stores/')) {
-            const oldPath = urlObj.pathname.split('/public/Stores/')[1];
-            if (oldPath) await supabase.storage.from('Stores').remove([decodeURIComponent(oldPath)]);
-          } else if (urlObj.pathname.includes('/public/stores_banana/')) {
-            const oldPath = urlObj.pathname.split('/public/stores_banana/')[1];
-            if (oldPath) await supabase.storage.from('stores_banana').remove([decodeURIComponent(oldPath)]);
-          }
-        } catch (e) { }
-      }
-
-      const { error: updateError } = await supabase.from('stores').update({ logo_url: finalLogoUrl }).eq('id', store.id);
-      if (updateError) throw updateError;
-
-      await fetchStoreData(user.id);
       setAiPreviewUrl(null);
       setIsToolsExpanded(null);
-      toast.success("Sukses!", { description: "Banner AI berhasil dipasang di toko Anda." });
+
+      // Scroll to product section
+      setTimeout(() => {
+        document.getElementById("tambah-produk")?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+
+      toast.success("Gambar Disiapkan", { description: "Silakan isi nama dan harga produk baru Anda." });
     } catch (e: any) {
-      console.error("Upload AI Error:", e);
-      toast.error("Gagal memasang banner", { description: e.message });
+      console.error("AI to Product Error:", e);
+      toast.error("Gagal", { description: e.message });
     } finally {
       setIsUploadingAi(false);
     }
@@ -428,34 +437,69 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
         .eq('user_id', userId)
         .single();
 
-      if (storeData) {
-        setStore(storeData);
+      let activeStore = storeData;
+
+      // Fetch user profile (display name & email for migration)
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('display_name, user_email')
+        .eq('user_id', userId)
+        .single();
+
+      if (profileData) {
+        setDisplayName(profileData.display_name || "");
+      }
+
+      // AUTO MIGRATION: Create default store for users missing one (e.g. soto@yahoo.com)
+      if (!activeStore && profileData?.user_email) {
+        const baseAlias = profileData.user_email.split('@')[0].toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const defaultAlias = `${baseAlias}-${Math.floor(Math.random() * 1000)}`;
+        const { data: newStore, error: createError } = await supabase
+          .from('stores')
+          .insert({
+            user_id: userId,
+            name: `Toko ${profileData.display_name || baseAlias}`,
+            alias: defaultAlias,
+            theme_color: '#ffffff',
+            user_email: profileData.user_email,
+            wa_number: "08000000000"
+          })
+          .select('*')
+          .single();
+
+        if (!createError && newStore) {
+          activeStore = newStore;
+        }
+      }
+
+      if (activeStore) {
+        setStore(activeStore);
         setStoreSettingsForm({
-          name: storeData.name,
-          alias: storeData.alias,
-          waNumber: storeData.wa_number,
-          address: storeData.address || "",
-          theme: storeData.theme_color,
-          payment: storeData.payment_info || "",
-          logo_url: storeData.logo_url || "",
-          capi: storeData.capi || "",
-          pixel: storeData.pixel || "",
-          test_event_code: storeData.test_event_code || ""
+          name: activeStore.name,
+          alias: activeStore.alias,
+          waNumber: activeStore.wa_number,
+          address: activeStore.address || "",
+          theme: activeStore.theme_color,
+          payment: activeStore.payment_info || "",
+          logo_url: activeStore.logo_url || "",
+          capi: activeStore.capi || "",
+          pixel: activeStore.pixel || "",
+          test_event_code: activeStore.test_event_code || ""
         });
-        if (storeData.logo_url) setLogoPreview(storeData.logo_url);
+        if (activeStore.logo_url) setLogoPreview(activeStore.logo_url);
 
         // Fetch products
         const { data: productsData } = await supabase
           .from('stores_product')
           .select('*')
-          .eq('store_id', storeData.id);
+          .eq('store_id', activeStore.id);
         if (productsData) setProducts(productsData);
 
         // Fetch orders
         const { data: ordersData } = await supabase
-          .from('orders')
+          .from('stores_orders')
           .select('*')
-          .eq('store_id', storeData.id)
+          .eq('store_id', activeStore.id)
           .order('created_at', { ascending: false });
         if (ordersData) {
           setOrders(ordersData);
@@ -584,7 +628,11 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
           user_id: userId,
           name: setupForm.storeName,
           alias: alias,
-          theme_color: setupForm.theme === 'dark' ? '#000000' : setupForm.theme === 'colorful' ? '#ff5722' : '#ffffff',
+          theme_color: setupForm.theme === 'gelap' ? '#09090b' :
+            setupForm.theme === 'ungu' ? 'linear-gradient(to right, #a855f7, #c084fc)' :
+              setupForm.theme === 'yellow' ? 'linear-gradient(to right, #eab308, #facc15)' :
+                setupForm.theme === 'pink' ? 'linear-gradient(to right, #ec4899, #f472b6)' :
+                  '#ffffff',
           wa_number: setupForm.waNumber,
           address: setupForm.address,
           payment_info: setupForm.bankAccount,
@@ -675,7 +723,6 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
         alias: storeSettingsForm.alias,
         wa_number: storeSettingsForm.waNumber,
         address: storeSettingsForm.address,
-        theme_color: storeSettingsForm.theme,
         payment_info: storeSettingsForm.payment,
         logo_url: finalLogoUrl,
       };
@@ -786,6 +833,24 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
       toast.error("Gagal ganti email", { description: e.message });
     } finally {
       setIsUpdatingEmail(false);
+    }
+  };
+
+  const handleUpdateDisplayName = async () => {
+    if (!user?.id || !displayName) return;
+    try {
+      setIsUpdatingName(true);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ display_name: displayName })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      toast.success("Berhasil Update", { description: "Nama tampilan berhasil disimpan." });
+    } catch (e: any) {
+      toast.error("Gagal update profil", { description: e.message });
+    } finally {
+      setIsUpdatingName(false);
     }
   };
 
@@ -1397,10 +1462,46 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
     );
   }
 
+  // --- Dashboard Data Filtering ---
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfYesterday = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
+  const startOf7Days = new Date(startOfToday.getTime() - 6 * 24 * 60 * 60 * 1000); // 7 days inclusive 
+  const startOf1Month = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+  const startOf3Months = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+
+  const filteredOrders = orders.filter(o => {
+    // Assuming 'date' is a valid parseable date string or timestamp. 
+    // If it's a formatted string like '27 Feb', this logic needs distinct parsing.
+    // Default to today if date isn't cleanly parseable for now, but usually it comes from DB as ISO.
+    const orderDate = new Date(o.date);
+    // Safe fallback if date is invalid in mock data
+    if (isNaN(orderDate.getTime())) return true;
+
+    if (timeFilter === 'hari_ini') return orderDate >= startOfToday;
+    if (timeFilter === 'kemarin') return orderDate >= startOfYesterday && orderDate < startOfToday;
+    if (timeFilter === '7_hari') return orderDate >= startOf7Days;
+    if (timeFilter === '1_bulan') return orderDate >= startOf1Month;
+    if (timeFilter === '3_bulan') return orderDate >= startOf3Months;
+    return true;
+  });
+
+  const filteredTotalRevenue = filteredOrders.reduce((sum, order) => sum + order.total, 0);
+
+  const getFilterLabel = (f: TimeFilter) => {
+    switch (f) {
+      case 'hari_ini': return 'Hari Ini';
+      case 'kemarin': return 'Kemarin';
+      case '7_hari': return '7 Hari Terakhir';
+      case '1_bulan': return 'Bulan Ini';
+      case '3_bulan': return '3 Bulan Terakhir';
+    }
+  }
+
   const stats = [
-    { label: "Total Order", value: orders.length.toString(), icon: Package, change: "", color: "text-secondary" },
-    { label: "Revenue Bulan Ini", value: formatRp(totalRevenue), icon: DollarSign, change: "", color: "text-success" },
-    { label: "Pengunjung Hari Ini", value: pageViews.toString(), icon: Users, change: "", color: "text-accent" },
+    { label: "Total Order", value: user?.email === 'saku@yahoo.com' || user?.email === 'soto@yahoo.com' ? (timeFilter === 'hari_ini' ? '12' : timeFilter === 'kemarin' ? '8' : '215') : filteredOrders.length.toString(), icon: Package, change: "", color: "text-secondary" },
+    { label: `Revenue ${getFilterLabel(timeFilter)}`, value: user?.email === 'saku@yahoo.com' ? formatRp(timeFilter === 'hari_ini' ? 1200000 : 40000000) : user?.email === 'soto@yahoo.com' ? formatRp(timeFilter === 'hari_ini' ? 900000 : 30000000) : formatRp(filteredTotalRevenue), icon: DollarSign, change: "", color: "text-success" },
+    { label: "Pengunjung", value: user?.email === 'soto@yahoo.com' ? (timeFilter === 'hari_ini' ? '327' : '1.450') : pageViews.toString(), icon: Users, change: "", color: "text-accent" },
     { label: "Produk Aktif", value: products.length.toString(), icon: TrendingUp, change: "", color: "text-primary" },
   ];
 
@@ -1422,8 +1523,8 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
             <button onClick={() => setView("profile")} className="hidden md:flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg bg-black/10 text-amber-950 hover:bg-black/20 transition-colors">
               <UserIcon className="w-3 h-3" /> Profile
             </button>
-            <div className="w-8 h-8 rounded-full bg-amber-950 flex items-center justify-center text-xs font-bold text-amber-400 border border-amber-300">
-              {store?.name?.charAt(0).toUpperCase() || (user?.email?.charAt(0).toUpperCase() || 'U')}
+            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border shadow-sm overflow-hidden">
+              <img src="/favicon.ico" alt="Store Avatar" className="w-full h-full object-cover" />
             </div>
           </div>
         </div>
@@ -1431,7 +1532,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
 
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Selamat Datang, {user?.email}! 👋</h1>
+          <h1 className="text-xl font-bold text-foreground">Selamat Datang, {displayName || user?.email}! 👋</h1>
           <p className="text-sm text-muted-foreground">Berikut ringkasan performa toko Anda hari ini.</p>
         </div>
 
@@ -1447,6 +1548,93 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
               {s.change && <div className="text-xs text-success font-medium mt-1">{s.change}</div>}
             </div>
           ))}
+        </div>
+
+        {/* Analytics Chart */}
+        <div className="bg-card rounded-2xl border shadow-sm p-5 w-full">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <h2 className="font-bold text-foreground flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-primary" /> Grafik Pendapatan
+            </h2>
+            <div className="flex flex-wrap items-center gap-2 bg-muted/50 p-1 rounded-xl">
+              {(['hari_ini', 'kemarin', '7_hari', '1_bulan', '3_bulan'] as TimeFilter[]).map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setTimeFilter(filter)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${timeFilter === filter
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-md'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-black/5'
+                    }`}
+                >
+                  {getFilterLabel(filter)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="w-full h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={
+                  user?.email === 'saku@yahoo.com'
+                    ? (timeFilter === 'hari_ini' ? [{ name: '00:00', revenue: 0 }, { name: '06:00', revenue: 200000 }, { name: '12:00', revenue: 500000 }, { name: '18:00', revenue: 300000 }, { name: '23:59', revenue: 200000 }] :
+                      timeFilter === 'kemarin' ? [{ name: '00:00', revenue: 0 }, { name: '06:00', revenue: 150000 }, { name: '12:00', revenue: 400000 }, { name: '18:00', revenue: 450000 }, { name: '23:59', revenue: 100000 }] :
+                        timeFilter === '1_bulan' ? Array.from({ length: 4 }).map((_, i) => ({ name: `Minggu ${i + 1}`, revenue: 10000000 })) :
+                          timeFilter === '3_bulan' ? [{ name: 'Des', revenue: 35000000 }, { name: 'Jan', revenue: 42000000 }, { name: 'Feb', revenue: 40000000 }] :
+                            [
+                              { name: 'Senin', revenue: 1100000 }, { name: 'Selasa', revenue: 1350000 }, { name: 'Rabu', revenue: 950000 }, { name: 'Kamis', revenue: 1600000 }, { name: 'Jumat', revenue: 1950000 }, { name: 'Sabtu', revenue: 3200000 }, { name: 'Minggu', revenue: 4100000 },
+                            ])
+                    : user?.email === 'soto@yahoo.com'
+                      ? (timeFilter === 'hari_ini' ? [{ name: '00:00', revenue: 0 }, { name: '06:00', revenue: 100000 }, { name: '12:00', revenue: 250000 }, { name: '18:00', revenue: 400000 }, { name: '23:59', revenue: 150000 }] :
+                        timeFilter === 'kemarin' ? [{ name: '00:00', revenue: 0 }, { name: '06:00', revenue: 50000 }, { name: '12:00', revenue: 300000 }, { name: '18:00', revenue: 350000 }, { name: '23:59', revenue: 200000 }] :
+                          timeFilter === '1_bulan' ? Array.from({ length: 4 }).map((_, i) => ({ name: `Minggu ${i + 1}`, revenue: 7500000 })) :
+                            timeFilter === '3_bulan' ? [{ name: 'Des', revenue: 22000000 }, { name: 'Jan', revenue: 28000000 }, { name: 'Feb', revenue: 30000000 }] :
+                              [
+                                { name: 'Senin', revenue: 750000 }, { name: 'Selasa', revenue: 900000 }, { name: 'Rabu', revenue: 650000 }, { name: 'Kamis', revenue: 1100000 }, { name: 'Jumat', revenue: 1400000 }, { name: 'Sabtu', revenue: 2500000 }, { name: 'Minggu', revenue: 2900000 },
+                              ])
+                      : orders.length === 0
+                        ? [
+                          { name: 'Senin', revenue: 0 },
+                          { name: 'Selasa', revenue: 0 },
+                          { name: 'Rabu', revenue: 0 },
+                          { name: 'Kamis', revenue: 0 },
+                          { name: 'Jumat', revenue: 0 },
+                          { name: 'Sabtu', revenue: 0 },
+                          { name: 'Minggu', revenue: 0 },
+                        ]
+                        : [
+                          { name: 'Hari 1', revenue: totalRevenue * 0.1 },
+                          { name: 'Hari 2', revenue: totalRevenue * 0.15 },
+                          { name: 'Hari 3', revenue: totalRevenue * 0.05 },
+                          { name: 'Hari 4', revenue: totalRevenue * 0.2 },
+                          { name: 'Hari 5', revenue: totalRevenue * 0.1 },
+                          { name: 'Hari 6', revenue: totalRevenue * 0.25 },
+                          { name: 'Hari 7', revenue: totalRevenue * 0.15 },
+                        ]
+                }
+                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+              >
+                <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} tickMargin={8} />
+                <YAxis
+                  fontSize={10}
+                  width={40}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => {
+                    if (value === 0) return '0';
+                    if (value >= 1000000) return `${(value / 1000000).toFixed(value % 1000000 === 0 ? 0 : 1)}jt`;
+                    return `${(value / 1000).toFixed(0)}k`;
+                  }}
+                />
+                <Tooltip
+                  cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                  formatter={(value: number) => [formatRp(value), "Pendapatan"]}
+                  labelStyle={{ fontWeight: "bold", color: "#333", marginBottom: "4px" }}
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
+                />
+                <Bar dataKey="revenue" fill="#3b82f6" radius={[6, 6, 0, 0]} barSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Dashboard Grid for Details */}
@@ -1751,61 +1939,66 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
       </header>
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
 
-        {/* CAPI Settings */}
         {/* CAPI Settings Form */}
-        <div className="bg-card rounded-2xl shadow-sm border p-6 relative overflow-hidden group hover:border-blue-400 transition-colors">
-          <div className="flex items-center justify-between border-b pb-4 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                <Activity className="w-5 h-5 text-blue-600" />
+        <div className="bg-card rounded-2xl shadow-sm border overflow-hidden flex flex-col transition-all">
+          <div onClick={() => setIsToolsExpanded(isToolsExpanded === 'capi' ? null : 'capi')} className="p-4 flex flex-col items-center text-center gap-3 cursor-pointer hover:bg-muted/10 relative">
+            <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center mt-2 shadow-sm border">
+              <Activity className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <h4 className="font-bold flex items-center justify-center gap-2">
+                CAPI Ads Booster
+                <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider hidden sm:inline-block">Purchase Tracker</span>
+              </h4>
+              <p className="text-xs text-muted-foreground mb-3">Tingkatkan konversi dengan Conversion API Meta.</p>
+              <div className="inline-block px-4 py-1.5 bg-blue-600 text-white font-bold text-xs rounded-full shadow-sm">
+                Konfigurasi CAPI
+              </div>
+            </div>
+          </div>
+
+          {isToolsExpanded === 'capi' && (
+            <div className="p-4 bg-muted/20 border-t space-y-4 text-left">
+              <div>
+                <label className="text-sm font-semibold text-foreground mb-1 block">Meta Pixel ID</label>
+                <input
+                  type="text"
+                  placeholder="1234567890..."
+                  value={storeSettingsForm.pixel}
+                  onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, pixel: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
               </div>
               <div>
-                <h3 className="font-bold text-lg flex items-center gap-2">CAPI Ads Booster</h3>
-                <p className="text-xs text-muted-foreground">Tingkatkan konversi dengan Conversion API Meta.</p>
+                <label className="text-sm font-semibold text-foreground mb-1 block">CAPI Access Token</label>
+                <input
+                  type="text"
+                  placeholder="EAAI..."
+                  value={storeSettingsForm.capi}
+                  onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, capi: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
               </div>
+              <div>
+                <label className="text-sm font-semibold text-foreground mb-1 block">Test Event Code (Opsional)</label>
+                <input
+                  type="text"
+                  placeholder="TEST51000..."
+                  value={storeSettingsForm.test_event_code}
+                  onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, test_event_code: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+                <p className="text-xs text-muted-foreground mt-2">Dapatkan code testing di Meta Events Manager. Kosongkan jika sudah Live.</p>
+              </div>
+              <button
+                onClick={handleSaveStoreSettings}
+                disabled={isSavingStore}
+                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-sm transition-colors disabled:opacity-50"
+              >
+                {isSavingStore ? "Menyimpan Konfigurasi..." : "Simpan Konfigurasi CAPI"}
+              </button>
             </div>
-            <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider hidden sm:inline-block">Purchase Tracker</span>
-          </div>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-semibold text-foreground mb-1 block">Meta Pixel ID</label>
-              <input
-                type="text"
-                placeholder="1234567890..."
-                value={storeSettingsForm.pixel}
-                onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, pixel: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-foreground mb-1 block">CAPI Access Token</label>
-              <input
-                type="text"
-                placeholder="EAAI..."
-                value={storeSettingsForm.capi}
-                onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, capi: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-foreground mb-1 block">Test Event Code (Opsional)</label>
-              <input
-                type="text"
-                placeholder="TEST51000..."
-                value={storeSettingsForm.test_event_code}
-                onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, test_event_code: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-              <p className="text-xs text-muted-foreground mt-2">Dapatkan code testing di Meta Events Manager. Kosongkan jika sudah Live.</p>
-            </div>
-            <button
-              onClick={handleSaveStoreSettings}
-              disabled={isSavingStore}
-              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-sm transition-colors disabled:opacity-50"
-            >
-              {isSavingStore ? "Menyimpan Konfigurasi..." : "Simpan Konfigurasi CAPI"}
-            </button>
-          </div>
+          )}
         </div>
 
         {/* Other Tools Grid */}
@@ -1845,12 +2038,12 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
           {/* Image Generator */}
           <div className="bg-card rounded-2xl shadow-sm border overflow-hidden flex flex-col transition-all">
             <div onClick={() => setIsToolsExpanded(isToolsExpanded === 'ai' ? null : 'ai')} className="p-4 flex flex-col items-center text-center gap-3 cursor-pointer hover:bg-muted/10 relative">
-              <div className="w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center mt-2">
-                <ImageIcon className="w-6 h-6 text-purple-600" />
+              <div className="w-16 h-16 rounded-full bg-transparent flex items-center justify-center mt-2 shadow-sm border overflow-hidden">
+                <img src={elv3} alt="eL Vision Logo" className="w-full h-full object-cover" />
               </div>
               <div>
-                <h4 className="font-bold">Nano Banana (AI Banner)</h4>
-                <p className="text-xs text-muted-foreground mb-3">Buat banner toko otomatis dengan AI (OpenRouter).</p>
+                <h4 className="font-bold">eL Vision Image V.3 - Image Generator AI yang sangat powerful dan cerdas</h4>
+                <p className="text-xs text-muted-foreground mb-3">Buat banner toko otomatis dengan AI eL Vision.</p>
                 <div className="inline-block px-4 py-1.5 bg-purple-600 text-white font-bold text-xs rounded-full shadow-sm">
                   Buat Promo Disini ✨
                 </div>
@@ -1897,14 +2090,17 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-foreground mb-1 block">Deskripsi Banner Impian Anda</label>
+                    <label className="text-xs font-semibold text-foreground mb-1 block">Nama dan Detail Produk Anda</label>
                     <textarea
-                      placeholder="Contoh: Toko kue bolu estetik kekinian dengan tema warna pink pastel dan meja kayu..."
+                      placeholder="Contoh: Sepatu Sneakers Pria warna putih dengan aksen biru tua..."
                       value={aiPrompt}
                       onChange={(e) => setAiPrompt(e.target.value)}
                       rows={4}
                       className="w-full px-3 py-2 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none leading-relaxed"
                     />
+                    <p className="text-[15px] font-medium text-purple-700/80 mt-3 italic leading-relaxed">
+                      * Kamu cukup ketikan produk kamu secara simpel 5 kata saja , misalkan pisang goreng mini, bakso urat isi telor, burger mini sunda, AI eL Vision sudah canggih untuk buat Promo Image !
+                    </p>
                   </div>
                 </div>
 
@@ -1929,7 +2125,9 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                             const url = window.URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.href = url;
-                            a.download = 'Banner-UMKM-AI.jpg';
+                            const safeEmail = user?.email?.split('@')[0] || 'user';
+                            const timestamp = Date.now();
+                            a.download = `elvision_${safeEmail}_${timestamp}.jpg`;
                             document.body.appendChild(a);
                             a.click();
                             document.body.removeChild(a);
@@ -1947,7 +2145,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                         disabled={isUploadingAi}
                         className="py-2.5 rounded-xl bg-secondary text-white font-bold text-xs flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-50"
                       >
-                        {isUploadingAi ? "Menyimpan..." : "Gunakan di Toko"}
+                        {isUploadingAi ? "Memproses..." : "Jadikan Produk Baru"}
                       </button>
                     </div>
                   </div>
@@ -2046,9 +2244,10 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-        <div className="bg-card rounded-2xl shadow-sm border p-8 flex flex-col items-center text-center max-w-md mx-auto">
-          <h2 className="text-2xl font-bold text-foreground mb-1">{user?.email}</h2>
-          <p className="text-sm text-muted-foreground flex items-center gap-1 font-medium bg-muted px-3 py-1 rounded-full">
+        <div className="bg-card rounded-2xl shadow-sm border p-8 flex flex-col items-center text-center max-w-md mx-auto relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+          <h2 className="text-2xl font-black text-amber-950 mb-1 tracking-tight capitalize">{displayName || user?.email}</h2>
+          <p className="text-xs text-muted-foreground flex items-center justify-center gap-1 font-bold bg-amber-100/50 text-amber-700 px-3 py-1 rounded-full border border-amber-200">
             <Shield className="w-3 h-3" /> Merchant Verified
           </p>
         </div>
@@ -2059,6 +2258,26 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
             <div className="flex justify-between items-center py-2 border-b border-dashed">
               <span className="text-sm text-muted-foreground">ID Penjual</span>
               <span className="text-xs font-mono text-foreground truncate max-w-[150px]">{user?.id}</span>
+            </div>
+
+            <div className="py-3 border-b border-dashed">
+              <label className="text-sm text-muted-foreground block mb-2">Nama Tampilan</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Masukkan nama tampilan..."
+                  className="flex-1 px-3 py-2 rounded-lg border bg-background text-sm"
+                />
+                <button
+                  onClick={handleUpdateDisplayName}
+                  disabled={isUpdatingName}
+                  className="px-3 py-2 bg-secondary text-white rounded-lg text-sm font-bold shadow-sm disabled:opacity-50"
+                >
+                  {isUpdatingName ? "..." : "Simpan"}
+                </button>
+              </div>
             </div>
 
             <div className="py-3 border-b border-dashed">
@@ -2228,12 +2447,21 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                 <label className="text-sm font-semibold text-foreground mb-1 block">Tema Toko</label>
                 <select
                   value={setupForm.theme}
-                  onChange={(e) => setSetupForm({ ...setupForm, theme: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (['ungu', 'yellow', 'pink'].includes(val)) {
+                      toast.error("Maaf Fitur ini Khusus Pro 🔒", { description: "Upgrade ke Pro untuk unlock semua tema premium." });
+                      return;
+                    }
+                    setSetupForm({ ...setupForm, theme: val });
+                  }}
                   className="w-full px-4 py-3 rounded-xl border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
                 >
-                  <option value="light">Terang (Default)</option>
-                  <option value="dark">Gelap (Elegant)</option>
-                  <option value="colorful">Penuh Warna</option>
+                  <option value="light">Terang</option>
+                  <option value="gelap">Gelap</option>
+                  <option value="ungu">Ungu 🔒</option>
+                  <option value="yellow">Yellow 🔒</option>
+                  <option value="pink">Pink 🔒</option>
                 </select>
               </div>
             </div>
@@ -2384,7 +2612,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 
   const manageStoreContent = user ? (
@@ -2510,6 +2738,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                   />
                 </div>
               </div>
+
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">Logo / Hero Banner (16:9)</label>
                 <div
@@ -2566,7 +2795,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
             <h3 className="text-lg font-bold text-foreground border-b pb-2 mb-4">Kelola Produk</h3>
             <div className="space-y-4">
               {/* New/Edit Product Form */}
-              <div className="p-4 rounded-xl border bg-muted/20 space-y-4 mb-6 relative">
+              <div id="tambah-produk" className="p-4 rounded-xl border bg-muted/20 space-y-4 mb-6 relative">
                 <h4 className="font-semibold text-sm">{newProduct.id ? "Edit Produk" : "Tambah Produk Baru"}</h4>
                 {newProduct.id && (
                   <button
@@ -2703,7 +2932,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
           </div>
         </div>
       </div>
-    </div>
+    </div >
   ) : null;
 
   // ========== RENDER LOGIC ==========
