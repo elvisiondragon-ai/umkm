@@ -6,13 +6,16 @@ import {
   Package, TrendingUp, Users, DollarSign, ArrowLeft, Store, Menu, X,
   Send, MapPin, Phone, Instagram, Facebook, Home, LogOut, LayoutDashboard,
   Settings, User as UserIcon, UploadCloud, Image as ImageIcon, CheckCircle2,
-  Lock, ArrowRight, Activity, Inbox, Copy, ExternalLink
+  Lock, ArrowRight, Activity, Inbox, Copy, ExternalLink, Share2
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { toast, Toaster } from "sonner";
 import imageCompression from 'browser-image-compression';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import elv3 from '../assets/elv3.png';
+import preview1 from '../assets/preview1.jpeg';
+import preview2 from '../assets/preview2.jpeg';
+import preview3 from '../assets/preview3.jpeg';
 
 // ==================== TYPES ====================
 type View = "home" | "dashboard" | "tools" | "umkm-template" | "login" | "create-store" | "settings" | "profile" | "live-store";
@@ -1085,9 +1088,9 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
         </section>
 
         {/* Demo Section - Embedded Mockup */}
-        <section className="py-24 relative overflow-hidden bg-background">
-          <div className="max-w-6xl mx-auto px-4 grid lg:grid-cols-2 gap-16 items-center">
-            <div>
+        <section className="py-24 relative overflow-hidden bg-background border-b border-border">
+          <div className="max-w-6xl mx-auto px-4 flex flex-col items-center">
+            <div className="text-center w-full max-w-3xl mx-auto mb-16">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-bold mb-6">
                 <Eye className="w-3 h-3" /> LIVE PREVIEW
               </div>
@@ -1098,13 +1101,13 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                 Ini adalah tampilan dashboard yang akan Anda kelola. Pantau pesanan masuk secara real-time dan kelola produk Anda dengan sangat mudah seolah-olah menggunakan aplikasi HP.
               </p>
 
-              <div className="space-y-6">
+              <div className="grid md:grid-cols-3 gap-6 text-left">
                 {[
                   { title: "Statistik Real-time", desc: "Pantau pengunjung dan revenue harian.", icon: BarChart3 },
                   { title: "Manajemen Produk", desc: "Tambah/edit produk cuma butuh hitungan detik.", icon: Package },
-                  { title: "Notifikasi Pesanan", desc: "Orderan masuk langsung muncul di dashboard & WA.", icon: ShoppingCart },
+                  { title: "Notifikasi Pesanan", desc: "Orderan masuk langsung muncul di dashboard WA.", icon: ShoppingCart },
                 ].map((item, i) => (
-                  <div key={i} className="flex items-start gap-4 p-4 rounded-2xl hover:bg-muted transition-colors">
+                  <div key={i} className="flex flex-col gap-3 p-5 rounded-2xl bg-card hover:bg-muted transition-colors border shadow-sm">
                     <div className="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center shrink-0">
                       <item.icon className="w-5 h-5 text-secondary" />
                     </div>
@@ -1117,26 +1120,33 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
               </div>
             </div>
 
-            <div className="relative">
-              {/* Mobile Phone Mockup (Static Image) */}
-              <div className="mx-auto w-[320px] h-[640px] border-[8px] border-slate-900 rounded-[3rem] bg-slate-900 shadow-2xl relative overflow-hidden ring-4 ring-slate-800 flex items-center justify-center">
-                {/* Selfie notch */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-900 rounded-b-2xl z-50"></div>
+            <div className="w-full relative mt-8">
+              {/* Scrollable container for mobile */}
+              <div className="flex justify-start md:justify-center gap-6 md:gap-8 overflow-x-auto pb-12 pt-10 px-6 md:px-0 snap-x snap-mandatory hide-scrollbar">
 
-                {/* Content Container (Image Placeholder) */}
-                <div className="w-full h-full bg-muted/20 flex flex-col items-center justify-center text-center p-6 mt-6">
-                  <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-2xl flex items-center justify-center mb-4">
-                    <Store className="w-8 h-8" />
-                  </div>
-                  <h3 className="font-bold text-foreground mb-2">Dashboard Preview</h3>
-                  <p className="text-xs text-muted-foreground mb-6">Tampilan asli aplikasi persis seperti menggunakan PWA di HP Anda.</p>
-                  <img src="/elv3.png" alt="Dashboard App" className="w-full rounded-xl shadow-sm border opacity-90 object-cover" />
+                {/* Phone 1 */}
+                <div className="snap-center shrink-0 relative w-[280px] h-[580px] md:w-[320px] md:h-[640px] border-[10px] border-slate-900 rounded-[3rem] bg-slate-900 shadow-2xl overflow-hidden ring-4 ring-slate-800 flex items-center justify-center hover:-translate-y-2 transition-transform duration-500 z-10">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-6 bg-slate-900 rounded-b-2xl z-50"></div>
+                  <img src={preview1} alt="Preview 1" className="w-full h-full object-cover bg-muted/20" />
                 </div>
+
+                {/* Phone 2 (Center, slightly elevated) */}
+                <div className="snap-center shrink-0 relative w-[280px] h-[580px] md:w-[320px] md:h-[640px] border-[10px] border-slate-900 rounded-[3rem] bg-slate-900 shadow-2xl overflow-hidden ring-4 ring-slate-800 flex items-center justify-center hover:-translate-y-4 transition-transform duration-500 md:-translate-y-12 z-20">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-6 bg-slate-900 rounded-b-2xl z-50"></div>
+                  <img src={preview2} alt="Preview 2" className="w-full h-full object-cover bg-muted/20" />
+                </div>
+
+                {/* Phone 3 */}
+                <div className="snap-center shrink-0 relative w-[280px] h-[580px] md:w-[320px] md:h-[640px] border-[10px] border-slate-900 rounded-[3rem] bg-slate-900 shadow-2xl overflow-hidden ring-4 ring-slate-800 flex items-center justify-center hover:-translate-y-2 transition-transform duration-500 z-10">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-6 bg-slate-900 rounded-b-2xl z-50"></div>
+                  <img src={preview3} alt="Preview 3" className="w-full h-full object-cover bg-muted/20" />
+                </div>
+
               </div>
 
               {/* Decorative elements */}
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-secondary/5 rounded-full blur-3xl -z-10 animate-pulse"></div>
-              <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-primary/5 rounded-full blur-3xl -z-10 animate-pulse" style={{ animationDelay: '1s' }}></div>
+              <div className="absolute top-1/2 right-0 w-64 h-64 md:w-96 md:h-96 bg-secondary/10 rounded-full blur-3xl -z-10 animate-pulse pointer-events-none"></div>
+              <div className="absolute top-1/2 left-0 w-64 h-64 md:w-96 md:h-96 bg-primary/10 rounded-full blur-3xl -z-10 animate-pulse pointer-events-none" style={{ animationDelay: '1s' }}></div>
             </div>
           </div>
         </section>
@@ -2064,33 +2074,94 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Sosmed Shares */}
           {/* Sosmed Shares */}
-          <div
-            onClick={async () => {
-              if (!store?.alias) return;
-              const url = `${window.location.origin}/${store.alias}`;
-              if (navigator.share) {
-                try {
-                  await navigator.share({
-                    title: `${store.name} - UMKM Portal`,
-                    text: `Kunjungi toko kami dan lihat katalog produk terbaru di ${store.name}!`,
-                    url: url
-                  });
-                } catch (err) {
-                  console.error("Share failed", err);
-                }
-              } else {
-                navigator.clipboard.writeText(url);
-                toast.success("Link Tersalin!", { description: "Link toko disalin ke clipboard." });
-              }
-            }}
-            className="bg-card rounded-2xl shadow-sm border p-6 flex flex-col items-center text-center gap-3 hover:border-secondary/30 transition-all cursor-pointer"
-          >
+          <div className="bg-card rounded-2xl shadow-sm border p-6 flex flex-col items-center text-center gap-3 hover:border-secondary/30 transition-all">
             <div className="w-14 h-14 rounded-full bg-pink-100 flex items-center justify-center">
               <Instagram className="w-6 h-6 text-pink-500" />
             </div>
             <div>
-              <h4 className="font-bold">Sosmed Shares</h4>
-              <p className="text-xs text-muted-foreground">Bagikan link toko ke sosmed atau WhatsApp.</p>
+              <h4 className="font-bold mb-1 block">Sosmed Shares</h4>
+              <p className="text-xs text-muted-foreground mb-3">Bagikan link toko ke sosmed atau WhatsApp.</p>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+
+                  if (!store?.alias) {
+                    toast.error("Toko belum siap.", { description: "Alias toko tidak ditemukan." });
+                    return;
+                  }
+
+                  const url = `${window.location.origin}/${store.alias}`;
+                  const shareData = {
+                    title: `${store.name} - UMKM Portal`,
+                    text: `Kunjungi toko kami dan lihat katalog produk terbaru di ${store.name}!`,
+                    url: url,
+                  };
+
+                  // Fallback: copy to clipboard with execCommand as last resort (works on HTTP too)
+                  const fallbackCopy = () => {
+                    if (navigator.clipboard && window.isSecureContext) {
+                      navigator.clipboard
+                        .writeText(url)
+                        .then(() => {
+                          toast.success("Link Tersalin! 🔗", {
+                            description: "Link toko disalin ke clipboard.",
+                          });
+                        })
+                        .catch(() => {
+                          execCommandCopy();
+                        });
+                    } else {
+                      execCommandCopy();
+                    }
+                  };
+
+                  const execCommandCopy = () => {
+                    try {
+                      const el = document.createElement("textarea");
+                      el.value = url;
+                      el.style.position = "fixed";
+                      el.style.left = "-9999px";
+                      el.style.top = "-9999px";
+                      document.body.appendChild(el);
+                      el.focus();
+                      el.select();
+                      const ok = document.execCommand("copy");
+                      document.body.removeChild(el);
+                      if (ok) {
+                        toast.success("Link Tersalin! 🔗", { description: "Link toko disalin ke clipboard." });
+                      } else {
+                        toast.info("Salin link ini:", { description: url });
+                      }
+                    } catch {
+                      toast.info("Salin link ini:", { description: url });
+                    }
+                  };
+
+                  // navigator.share: call synchronously inside user gesture, no await
+                  if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+                    navigator
+                      .share(shareData)
+                      .then(() => {
+                        toast.success("Link berhasil dibagikan! 🎉");
+                      })
+                      .catch((err: unknown) => {
+                        if (err instanceof DOMException && err.name === "AbortError") {
+                          // User menutup share sheet — tidak perlu feedback
+                          return;
+                        }
+                        // Share gagal, fallback ke clipboard
+                        fallbackCopy();
+                      });
+                  } else {
+                    // Browser tidak support share API — fallback ke clipboard
+                    fallbackCopy();
+                  }
+                }}
+                className="text-[11px] font-bold text-white bg-pink-600 hover:bg-pink-700 px-4 py-2 rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95 w-full mt-2"
+              >
+                <Share2 className="w-3.5 h-3.5" /> Share Toko Kamu
+              </button>
             </div>
           </div>
 
@@ -2121,7 +2192,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                   </p>
 
                   <button
-                    onClick={() => window.open('https://ai.studio/apps/cb4513ca-62f3-4aea-94bb-0fd2a3cf4ded', '_blank')}
+                    onClick={() => window.open('https://ai.studio/apps/cb4513ca-62f3-4aea-94bb-0fd2a3cf4ded?fullscreenApplet=true', '_blank')}
                     className="w-full py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-[15px] shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 active:scale-95"
                   >
                     Buka AI Promo Generator <ExternalLink className="w-5 h-5" />
@@ -2177,7 +2248,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
         <div className="space-y-4">
           {[
             { id: 1, title: "CAPI Ads Booster", desc: "Konversi penjualan meningkat 2x lipat dengan pelacakan data iklan yang lebih akurat.", icon: Activity, color: "bg-blue-500", isImage: false },
-            { id: 2, title: "Image Promo Generator", desc: "Kamu tidak perlu memfoto produk, cukup 1x ketik sederhana AI kami beri kamu foto Kelas Fotographer.", imageSrc: "/elv3.png", color: "bg-transparent", isImage: true },
+            { id: 2, title: "Image Promo Generator", desc: "Kamu tidak perlu memfoto produk, cukup 1x ketik sederhana AI kami beri kamu foto Kelas Fotographer.", imageSrc: elv3, color: "bg-transparent", isImage: true },
             { id: 3, title: "Edukasi Jualan Laris", desc: "Akses tips & trik jualan dari praktisi agar dagangan Anda dicari pelanggan.", icon: Zap, color: "bg-orange-500", isImage: false },
           ].map(tool => (
             <div key={tool.id} className="p-5 rounded-2xl bg-card border shadow-sm flex items-start gap-4 group hover:border-secondary/30 transition-all">
@@ -2649,15 +2720,29 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                   <div className="flex items-center justify-between">
                     <p className="text-xs text-muted-foreground mt-1">*Bisa diganti (hanya huruf, angka, dan strip).</p>
                     <button
-                      onClick={() => {
+                      type="button"
+                      onClick={async (e) => {
+                        e.preventDefault();
                         const url = `https://umkm.elvisiongroup.com/${storeSettingsForm.alias}`;
-                        if (navigator.clipboard) {
-                          navigator.clipboard.writeText(url).then(() => toast.success("Link URL Tercopy!"));
+
+                        if (navigator.share) {
+                          try {
+                            await navigator.share({
+                              title: `${storeSettingsForm.name} - UMKM Portal`,
+                              text: `Kunjungi toko kami dan lihat katalog produk terbaru di ${storeSettingsForm.name}!`,
+                              url: url
+                            });
+                          } catch (err) {
+                            console.error("Share failed", err);
+                          }
+                        } else {
+                          navigator.clipboard.writeText(url);
+                          toast.success("Link Tersalin!", { description: "Link toko disalin ke clipboard." });
                         }
                       }}
-                      className="text-xs font-bold text-secondary flex items-center gap-1 hover:underline"
+                      className="text-[11px] font-bold text-white bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-1.5 transition-all active:scale-95"
                     >
-                      <Copy className="w-3 h-3" /> Copy URL
+                      <Share2 className="w-3.5 h-3.5" /> Bagikan Toko
                     </button>
                   </div>
                 </div>
