@@ -6,7 +6,7 @@ import {
   Package, TrendingUp, Users, DollarSign, ArrowLeft, Store, Menu, X,
   Send, MapPin, Phone, Instagram, Facebook, Home, LogOut, LayoutDashboard,
   Settings, User as UserIcon, UploadCloud, Image as ImageIcon, CheckCircle2,
-  Lock, ArrowRight, Activity, Inbox, Copy
+  Lock, ArrowRight, Activity, Inbox, Copy, ExternalLink
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { toast, Toaster } from "sonner";

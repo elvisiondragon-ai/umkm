@@ -42,7 +42,29 @@ export default defineConfig(({ mode }) => ({
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // ✅ FIX: Only intercept internal app routes, never external URLs
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [
+          /^https?:\/\//, // Block all absolute external URLs
+        ],
+        navigateFallbackAllowlist: [
+          /^\/(?!api\/).*/, // Only handle internal routes (not /api/)
+        ],
+        // ✅ FIX: Don't cache or intercept external requests
+        runtimeCaching: [
+          {
+            urlPattern: /^\//, // Only cache paths that start with / (internal)
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'app-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 86400,
+              },
+            },
+          },
+        ],
       }
     })
   ],
