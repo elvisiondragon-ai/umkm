@@ -6,7 +6,7 @@ import {
   Package, TrendingUp, Users, DollarSign, ArrowLeft, Store, Menu, X,
   Send, MapPin, Phone, Instagram, Facebook, Home, LogOut, LayoutDashboard,
   Settings, User as UserIcon, UploadCloud, Image as ImageIcon, CheckCircle2,
-  Lock, ArrowRight, Activity, Inbox, Copy, ExternalLink
+  Lock, ArrowRight, Activity, Inbox, Copy
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { toast, Toaster } from "sonner";
@@ -2111,29 +2111,20 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
 
             {isToolsExpanded === 'ai' && (
               <div className="p-4 bg-muted/20 border-t text-left">
-                <div className="bg-purple-50/50 border border-purple-200 rounded-xl p-5">
-                  <div className="flex flex-col items-center justify-center text-center mb-4">
-                    <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mb-2">
-                      <Lock className="w-6 h-6 text-purple-600" />
-                    </div>
-                    <h3 className="text-purple-900 font-bold text-base">Khusus Pro Fitur</h3>
-                    <p className="text-xs font-medium text-purple-700/80 leading-relaxed max-w-xs mt-1">
-                      Kamu bisa buat image keren disini cukup copy text panduan ini:
-                    </p>
+                <div className="bg-purple-50/50 border border-purple-200 rounded-xl p-6 text-center">
+                  <div className="w-14 h-14 mx-auto rounded-full bg-purple-100 flex items-center justify-center mb-3 shadow-inner">
+                    <Lock className="w-7 h-7 text-purple-600" />
                   </div>
-
-                  <div className="bg-white p-4 rounded-xl border border-purple-100 shadow-sm relative group">
-                    <p className="text-[11px] font-mono text-slate-700 select-all leading-relaxed whitespace-pre-wrap">
-                      Buatkan saya desain promo produk e-commerce yang profesional dan estetik. Nama atau panduan produknya adalah: [Tulis nama produk jajanan/menu unggulan kamu di sini]
-                    </p>
-                    <p className="text-[9px] text-right mt-2 text-purple-500 font-semibold italic">* Block text di atas lalu Copy</p>
-                  </div>
+                  <h3 className="text-purple-900 font-extrabold text-lg mb-1">Akses AI Studio Pro</h3>
+                  <p className="text-xs font-medium text-purple-700/80 leading-relaxed mb-6">
+                    Fitur ini akan mengarahkan Anda ke ruang kerja khusus eL Vision Promo Generator berbasis AI tingkat lanjut.
+                  </p>
 
                   <button
-                    onClick={() => window.open('https://gemini.google.com/app', '_blank')}
-                    className="w-full mt-4 py-3 rounded-xl bg-purple-600 text-white font-bold text-sm shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                    onClick={() => window.open('https://ai.studio/apps/cb4513ca-62f3-4aea-94bb-0fd2a3cf4ded', '_blank')}
+                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-[15px] shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 active:scale-95"
                   >
-                    Buka Google Gemini <ExternalLink className="w-4 h-4" />
+                    Buka AI Promo Generator <ExternalLink className="w-5 h-5" />
                   </button>
                 </div>
               </div>
@@ -2647,12 +2638,12 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                 <label className="text-sm font-semibold text-foreground mb-1 block">Web URL (Alias)</label>
                 <div className="flex flex-col gap-2">
                   <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">umkm.elvisiongroup.com/</span>
                     <input
                       type="text"
-                      placeholder="namain-toko-kamu"
                       value={storeSettingsForm.alias}
                       onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, alias: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
-                      className="w-full px-4 py-3 rounded-xl border bg-background text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50 placeholder:font-normal"
+                      className="w-full pl-[185px] pr-4 py-3 rounded-xl border bg-background text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -2660,30 +2651,8 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                     <button
                       onClick={() => {
                         const url = `https://umkm.elvisiongroup.com/${storeSettingsForm.alias}`;
-
-                        const handleSuccess = () => toast.success("Link Tersalin ke Clipboard! 🚀", { description: url });
-                        const handleError = () => toast.error("Gagal menyalin link.");
-
-                        if (navigator.clipboard && window.isSecureContext) {
-                          navigator.clipboard.writeText(url)
-                            .then(handleSuccess)
-                            .catch(handleError);
-                        } else {
-                          // Fallback for mobile WebViews or strict environments
-                          const textArea = document.createElement("textarea");
-                          textArea.value = url;
-                          textArea.style.position = "fixed";
-                          textArea.style.left = "-999999px";
-                          textArea.style.top = "-999999px";
-                          document.body.appendChild(textArea);
-                          textArea.select();
-                          try {
-                            document.execCommand('copy');
-                            handleSuccess();
-                          } catch (err) {
-                            handleError();
-                          }
-                          textArea.remove();
+                        if (navigator.clipboard) {
+                          navigator.clipboard.writeText(url).then(() => toast.success("Link URL Tercopy!"));
                         }
                       }}
                       className="text-xs font-bold text-secondary flex items-center gap-1 hover:underline"
