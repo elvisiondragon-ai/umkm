@@ -16,6 +16,7 @@ import elv3 from '../assets/elv3.png';
 import preview1 from '../assets/preview1.jpeg';
 import preview2 from '../assets/preview2.jpeg';
 import preview3 from '../assets/preview3.jpeg';
+import tutorVideo from '../assets/tutorhow.mp4';
 
 // ==================== TYPES ====================
 type View = "home" | "dashboard" | "tools" | "umkm-template" | "login" | "create-store" | "settings" | "profile" | "live-store";
@@ -1427,6 +1428,45 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
             </div>
           </div>
         </section>
+
+        {/* Tutorial Video — Cara Menggunakan (Logout Only) */}
+        {!user && (
+          <section className="py-16 md:py-20 bg-muted/30 border-y">
+            <div className="max-w-3xl mx-auto px-4">
+              <div className="text-center mb-10">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-bold mb-4">
+                  <Zap className="w-3 h-3" /> TUTORIAL
+                </div>
+                <h2 className="text-2xl md:text-3xl font-extrabold text-foreground mb-3">
+                  Cara Menggunakan <span className="text-secondary">ElVisionUMKM</span>
+                </h2>
+                <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto">
+                  Tonton video singkat ini dan kamu bisa langsung buat toko sendiri dalam 5 menit!
+                </p>
+              </div>
+
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border/50 bg-black">
+                <video
+                  src={tutorVideo}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="w-full max-h-[560px] object-contain"
+                  poster=""
+                />
+              </div>
+
+              <div className="mt-8 text-center">
+                <button
+                  onClick={() => setView("login")}
+                  className="px-10 py-4 rounded-2xl bg-cta-gradient text-accent-foreground font-extrabold text-base shadow-card hover:shadow-card-hover hover:scale-105 transition-all active:scale-95"
+                >
+                  Coba Sekarang — Gratis! →
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* CTA Final */}
         <section className="py-16 md:py-24">
