@@ -1452,7 +1452,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                   playsInline
                   preload="metadata"
                   className="w-full max-h-[560px] object-contain"
-                  poster=""
+                  poster="/tutor_poster.png"
                 />
               </div>
 
@@ -1488,10 +1488,16 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
               <img src="/umkm-logo.png" alt="Logo UMKM" className="w-6 h-6 rounded-[6px] object-cover bg-white p-[1px]" />
               <span className="font-semibold text-foreground">ElVision<span className="text-secondary">UMKM</span></span>
             </div>
-            <p>© 2025 ElVision Group. Semua hak dilindungi.</p>
+            <div className="flex flex-col items-center gap-2 text-center">
+              <div className="flex items-center gap-2">
+                <img src="/rgtlogo.png" alt="PT. RGT" className="w-6 h-6 object-contain" />
+                <span className="text-xs text-muted-foreground">Dibawah Naungan Perusahaan Terbatas PT. RGT</span>
+              </div>
+              <p>© 2026 El Vision Group. Semua hak dilindungi.</p>
+            </div>
             <div className="flex gap-4">
               <Shield className="w-4 h-4" />
-              <span>Data Aman & Terenkripsi</span>
+              <span>Data Aman &amp; Terenkripsi</span>
             </div>
           </div>
         </footer>
