@@ -17,6 +17,10 @@ import preview1 from '../assets/preview1.jpeg';
 import preview2 from '../assets/preview2.jpeg';
 import preview3 from '../assets/preview3.jpeg';
 import tutorVideo from '../assets/tutorhow.mp4';
+import { initFacebookPixel, trackPageView, trackViewContent } from "../utils/fbpixel";
+
+const PIXEL_ID = "2158382114674235";
+const TEST_CODE = "testcode_indo";
 
 // ==================== TYPES ====================
 type View = "home" | "dashboard" | "tools" | "umkm-template" | "login" | "create-store" | "settings" | "profile" | "live-store";
@@ -180,6 +184,18 @@ const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
 
   const { alias } = useParams();
   const navigate = useNavigate();
+
+  // Meta Pixel Initialization
+  useEffect(() => {
+    initFacebookPixel(PIXEL_ID);
+    trackPageView(PIXEL_ID, TEST_CODE);
+    trackViewContent(PIXEL_ID, {
+      content_name: 'UMKM eL Vision Landing Page',
+      content_category: 'Service',
+      content_ids: ['umkm_elvision_lp'],
+      content_type: 'product'
+    }, TEST_CODE);
+  }, []);
 
   // Handle /pageseller bypass logic
   useEffect(() => {
