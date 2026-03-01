@@ -676,7 +676,50 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
         }
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        // AUTO MIGRATION / SILENT LOGIN for existing users
+        if (authError.message.toLowerCase().includes('already registered') || authError.message.toLowerCase().includes('already exist')) {
+          const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+            email: setupForm.email,
+            password: setupForm.password,
+          });
+          
+          if (loginError) {
+            if (loginError.message.toLowerCase().includes('invalid login credentials')) {
+              throw new Error("Akun ini sudah terdaftar di eL Vision. Silakan gunakan password yang benar atau fitur Lupa Password.");
+            }
+            throw loginError;
+          }
+          
+          if (loginData.user) {
+            // Create store for existing user if they don't have one
+            const { data: existingStore } = await supabase
+              .from('stores')
+              .select('id')
+              .eq('user_id', loginData.user.id)
+              .maybeSingle();
+
+            if (!existingStore) {
+              const alias = setupForm.storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+              await supabase.from('stores').insert({
+                user_id: loginData.user.id,
+                name: setupForm.storeName,
+                alias: alias,
+                theme_color: setupForm.theme === 'gelap' ? '#09090b' : '#ffffff',
+                wa_number: setupForm.waNumber,
+                address: setupForm.address,
+                payment_info: setupForm.bankAccount,
+                user_email: setupForm.email
+              });
+            }
+            
+            toast.success("Migrasi Berhasil", { description: "Akun Anda terdeteksi di ekosistem eL Vision. Selamat datang!" });
+            return; // onAuthStateChange will handle view
+          }
+        }
+        throw authError;
+      }
+      
       if (!authData.user) throw new Error("Gagal membuat user");
 
       // If signUp didn't create a session, force sign in with same credentials

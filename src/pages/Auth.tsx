@@ -190,13 +190,23 @@ export function Auth() {
             });
 
             if (error) {
-                if (error.message.includes('already registered')) {
+                // AUTO MIGRATION / SILENT LOGIN for existing users
+                if (error.message.toLowerCase().includes('already registered') || error.message.toLowerCase().includes('already exist')) {
                     const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
                         email: processedEmail,
                         password: signupData.password,
                     });
-                    if (loginError) throw loginError;
+                    
+                    if (loginError) {
+                        // If password wrong but account exists, inform them precisely
+                        if (loginError.message.toLowerCase().includes('invalid login credentials')) {
+                            throw new Error("Akun ini sudah terdaftar di eL Vision. Silakan gunakan password yang benar atau fitur Lupa Password.");
+                        }
+                        throw loginError;
+                    }
+                    
                     if (loginData.user) {
+                        localStorage.setItem('login-success-pending', 'true');
                         navigate(redirectPath);
                         return;
                     }

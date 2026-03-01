@@ -10,6 +10,7 @@ import { lazy, Suspense } from "react";
 const Index = lazy(() => import("./pages/Index")) as React.LazyExoticComponent<React.FC<{ bypassHome?: boolean }>>;
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Auth = lazy(() => import("./pages/Auth").then(m => ({ default: m.Auth })));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 import ServiceWorkerUpdater from "./components/ServiceWorkerUpdater";
 
 // Loading Fallback Component
@@ -51,6 +52,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/pageseller" element={<Index bypassHome={true} />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/:alias" element={<Index />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
