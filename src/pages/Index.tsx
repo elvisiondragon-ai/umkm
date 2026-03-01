@@ -17,6 +17,7 @@ import preview1 from '../assets/preview1.jpeg';
 import preview2 from '../assets/preview2.jpeg';
 import preview3 from '../assets/preview3.jpeg';
 import tutorVideo from '../assets/tutorhow.mp4';
+import tutor2Video from '../assets/tutor2.mp4';
 import { initFacebookPixel, trackPageView, trackViewContent } from "../utils/fbpixel";
 
 const PIXEL_ID = "2158382114674235";
@@ -48,6 +49,7 @@ interface DBStore {
   payment_info: string;
   capi?: string;
   pixel?: string;
+  alias_change_count?: number;
 }
 
 interface Order {
@@ -838,12 +840,22 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
       // Build update payload - only include fields that exist
       const updatePayload: Record<string, any> = {
         name: storeSettingsForm.name,
-        alias: storeSettingsForm.alias,
         wa_number: storeSettingsForm.waNumber,
         address: storeSettingsForm.address,
         payment_info: storeSettingsForm.payment,
         logo_url: finalLogoUrl,
       };
+
+      // ALIAS CHANGE LOGIC: Limit to 1 time
+      if (storeSettingsForm.alias !== store.alias) {
+        const changeCount = store.alias_change_count || 0;
+        if (changeCount >= 1) {
+          throw new Error("Anda sudah pernah mengubah alias. Alias hanya bisa diubah 1x saja.");
+        }
+        updatePayload.alias = storeSettingsForm.alias;
+        updatePayload.alias_change_count = changeCount + 1;
+      }
+
       // Only send capi/pixel if user has entered a value
       if (storeSettingsForm.capi) updatePayload.capi = storeSettingsForm.capi;
       if (storeSettingsForm.pixel) updatePayload.pixel = storeSettingsForm.pixel;
@@ -1495,41 +1507,71 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
 
         {/* Tutorial Video — Cara Menggunakan (Logout Only) */}
         {!user && (
-          <section className="py-16 md:py-20 bg-muted/30 border-y">
-            <div className="max-w-3xl mx-auto px-4">
-              <div className="text-center mb-10">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-bold mb-4">
-                  <Zap className="w-3 h-3" /> TUTORIAL
+          <>
+            <section className="py-16 md:py-20 bg-muted/30 border-y">
+              <div className="max-w-3xl mx-auto px-4">
+                <div className="text-center mb-10">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 text-secondary text-xs font-bold mb-4">
+                    <Zap className="w-3 h-3" /> TUTORIAL
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-extrabold text-foreground mb-3">
+                    Cara Menggunakan <span className="text-secondary">ElVisionUMKM</span>
+                  </h2>
+                  <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto">
+                    Tonton video singkat ini dan kamu bisa langsung buat toko sendiri dalam 5 menit!
+                  </p>
                 </div>
-                <h2 className="text-2xl md:text-3xl font-extrabold text-foreground mb-3">
-                  Cara Menggunakan <span className="text-secondary">ElVisionUMKM</span>
-                </h2>
-                <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto">
-                  Tonton video singkat ini dan kamu bisa langsung buat toko sendiri dalam 5 menit!
-                </p>
-              </div>
 
-              <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border/50 bg-black">
-                <video
-                  src={tutorVideo}
-                  controls
-                  playsInline
-                  preload="metadata"
-                  className="w-full max-h-[560px] object-contain"
-                  poster="/tutor_poster.png"
-                />
-              </div>
+                <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border/50 bg-black">
+                  <video
+                    src={tutorVideo}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="w-full max-h-[560px] object-contain"
+                    poster="/tutor_poster.png"
+                  />
+                </div>
 
-              <div className="mt-8 text-center">
-                <button
-                  onClick={() => setView("login")}
-                  className="px-10 py-4 rounded-2xl bg-cta-gradient text-accent-foreground font-extrabold text-base shadow-card hover:shadow-card-hover hover:scale-105 transition-all active:scale-95"
-                >
-                  Coba Sekarang — Gratis! →
-                </button>
+                <div className="mt-8 text-center">
+                  <button
+                    onClick={() => setView("login")}
+                    className="px-10 py-4 rounded-2xl bg-cta-gradient text-accent-foreground font-extrabold text-base shadow-card hover:shadow-card-hover hover:scale-105 transition-all active:scale-95"
+                  >
+                    Coba Sekarang — Gratis! →
+                  </button>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+
+            {/* Second Video — Real Demo (Logout Only) */}
+            <section className="py-16 md:py-20 bg-background border-b">
+              <div className="max-w-3xl mx-auto px-4">
+                <div className="text-center mb-10">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-4">
+                    <Package className="w-3 h-3" /> DEMO NYATA
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-extrabold text-foreground mb-3">
+                    Ini <span className="text-primary">Demo Orderan Real</span> Nya
+                  </h2>
+                  <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto">
+                    Lihat bagaimana alur transaksi otomatis bekerja dari awal sampai pesanan masuk ke WhatsApp.
+                  </p>
+                </div>
+
+                <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-border/50 bg-black">
+                  <video
+                    src={tutor2Video}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="w-full max-h-[560px] object-contain"
+                    poster="/tutor_poster.png"
+                  />
+                </div>
+              </div>
+            </section>
+          </>
         )}
 
         {/* CTA Final */}
@@ -1902,8 +1944,20 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
       {/* Order Form */}
       <section id="order" className="py-8 md:py-12 bg-muted/50">
         <div className="max-w-lg mx-auto px-4">
-          <h2 className="text-lg font-bold text-foreground mb-2">Form Pemesanan</h2>
-          <p className="text-sm text-muted-foreground mb-6">Isi data di bawah, pesanan akan dikirim ke WhatsApp kami.</p>
+          {/* Total Calculation Display */}
+          <div className="mb-6 p-5 rounded-2xl bg-secondary text-white shadow-lg flex justify-between items-center animate-in fade-in zoom-in-95">
+            <div>
+              <p className="text-xs font-bold opacity-80 uppercase tracking-widest">Total Pesanan</p>
+              <p className="text-2xl font-black">
+                {formatRp(products.reduce((acc, p) => acc + (p.price * (demoCart[p.id.toString()] || 0)), 0))}
+              </p>
+            </div>
+            <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+              <ShoppingCart className="w-6 h-6" />
+            </div>
+          </div>
+
+          <h2 className="text-lg font-bold text-foreground mb-2">Form Pemesanan</h2>          <p className="text-sm text-muted-foreground mb-6">Isi data di bawah, pesanan akan dikirim ke WhatsApp kami.</p>
           <div className="space-y-4 rounded-xl bg-card shadow-card border p-5">
             {[
               { label: "Nama Lengkap", key: "nama" as const, type: "text", placeholder: "Masukkan nama Anda" },
@@ -2826,12 +2880,20 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                     <input
                       type="text"
                       value={storeSettingsForm.alias}
+                      disabled={store?.alias_change_count ? store.alias_change_count >= 1 : false}
                       onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, alias: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
-                      className="w-full pl-8 pr-4 py-3 rounded-xl border bg-background text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                      className={`w-full pl-8 pr-4 py-3 rounded-xl border bg-background text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50 ${store?.alias_change_count && store.alias_change_count >= 1 ? 'opacity-60 cursor-not-allowed bg-muted' : ''}`}
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-[10px] text-muted-foreground mt-1">Alias unik toko Anda. Link lengkap: umkm.elvisiongroup.com/{storeSettingsForm.alias}</p>
+                    <div className="flex flex-col gap-1">
+                      <p className="text-[10px] text-muted-foreground">Alias unik toko Anda. Link lengkap: umkm.elvisiongroup.com/{storeSettingsForm.alias}</p>
+                      {store?.alias_change_count && store.alias_change_count >= 1 ? (
+                        <p className="text-[10px] font-bold text-destructive italic">*Kesempatan ubah alias sudah habis.</p>
+                      ) : (
+                        <p className="text-[10px] font-bold text-amber-600 italic">*Peringatan: Alias hanya bisa diubah 1x saja.</p>
+                      )}
+                    </div>
                     <button
                       type="button"
                       onClick={async (e) => {
