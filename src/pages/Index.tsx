@@ -496,6 +496,11 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
       }
 
       if (activeStore) {
+        // BUGFIX: Prevent overwriting public store state when logged-in user views another store
+        if (alias && alias !== activeStore.alias) {
+          return;
+        }
+
         setStore(activeStore);
         setStoreSettingsForm({
           name: activeStore.name,
@@ -536,7 +541,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
         const { count } = await supabase
           .from('page_views')
           .select('*', { count: 'exact', head: true })
-          .eq('store_id', storeData.id)
+          .eq('store_id', activeStore.id)
           .gte('viewed_at', todayStart.toISOString());
         setPageViews(count || 0);
       }
@@ -991,7 +996,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
 
   // Check if user is logged in, not on the homepage, and viewing on desktop
   const isProtectedView = user && view !== "home" && view !== "login";
-  if (isProtectedView && !isMobile) {
+  if (isProtectedView && !isMobile && window.location.hostname !== 'localhost') {
     return mobileRestrictionScreen;
   }
 
@@ -1526,7 +1531,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
     return true;
   });
 
-  const filteredTotalRevenue = filteredOrders.reduce((sum, order) => sum + order.total, 0);
+  const filteredTotalRevenue = filteredOrders.reduce((sum, order) => sum + (parseFloat(order.total_amount) || order.total || 0), 0);
 
   const getFilterLabel = (f: TimeFilter) => {
     switch (f) {
@@ -1736,7 +1741,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                       <div className="text-xs text-muted-foreground mb-1">{o.items}</div>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">{o.date}</span>
-                        <span className="text-sm font-semibold text-foreground">{formatRp(o.total)}</span>
+                        <span className="text-sm font-semibold text-foreground">{formatRp(parseFloat(o.total_amount) || o.total || 0)}</span>
                       </div>
                     </div>
                   ))}
@@ -3209,7 +3214,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                       <div className="text-xs text-muted-foreground mb-2 leading-relaxed">{o.items}</div>
                       <div className="flex items-center justify-between pt-2 border-t border-dashed">
                         <span className="text-[10px] text-muted-foreground">{o.date}</span>
-                        <span className="text-sm font-bold text-foreground">{formatRp(o.total)}</span>
+                        <span className="text-sm font-bold text-foreground">{formatRp(parseFloat(o.total_amount) || o.total || 0)}</span>
                       </div>
                     </div>
                   ))}

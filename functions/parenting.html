@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Co-Parenting Digital Planner - Template Google Sheets & Excel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:wght@700;900&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1A1A1A',
+                        primaryLight: '#F5F5F5',
+                        primaryDark: '#0D0D0D',
+                        accent: '#2D2D2D',
+                        muted: '#6B6B6B',
+                        light: '#FAFAFA',
+                        card: '#FFFFFF',
+                        border: '#E8E8E8',
+                        success: '#2E7D32',
+                        warning: '#D97706'
+                    },
+                    fontFamily: {
+                        display: ['Fraunces', 'serif'],
+                        body: ['Plus Jakarta Sans', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --primary: #1A1A1A;
+            --primary-light: #F5F5F5;
+            --accent: #2D2D2D;
+            --muted: #6B6B6B;
+            --light: #FAFAFA;
+            --border: #E8E8E8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--light);
+            color: var(--primary);
+        }
+
+        .font-display {
+            font-family: 'Fraunces', serif;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-100%);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes pulse-subtle {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(26, 26, 26, 0.15);
+            }
+
+            50% {
+                box-shadow: 0 0 0 10px rgba(26, 26, 26, 0);
+            }
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        .animate-fade-in-up {
+            animation: fadeInUp 0.8s ease-out forwards;
+        }
+
+        .animate-slide-in {
+            animation: slideInLeft 0.5s ease-out forwards;
+        }
+
+        .animate-pulse-subtle {
+            animation: pulse-subtle 2.5s ease-in-out infinite;
+        }
+
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .stagger-1 {
+            animation-delay: 0.1s;
+            opacity: 0;
+        }
+
+        .stagger-2 {
+            animation-delay: 0.2s;
+            opacity: 0;
+        }
+
+        .stagger-3 {
+            animation-delay: 0.3s;
+            opacity: 0;
+        }
+
+        .stagger-4 {
+            animation-delay: 0.4s;
+            opacity: 0;
+        }
+
+        .stagger-5 {
+            animation-delay: 0.5s;
+            opacity: 0;
+        }
+
+        /* Reveal on scroll */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s ease-out;
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Button effects */
+        .btn-primary {
+            background: linear-gradient(135deg, #1A1A1A 0%, #2D2D2D 100%);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .btn-primary:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(26, 26, 26, 0.25);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        /* Card hover */
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Notification popup */
+        .notification-popup {
+            animation: slideInLeft 0.5s ease-out forwards;
+        }
+
+        .notification-popup.hide {
+            animation: slideOutLeft 0.3s ease-in forwards;
+        }
+
+        @keyframes slideOutLeft {
+            to {
+                opacity: 0;
+                transform: translateX(-100%);
+            }
+        }
+
+        /* Background pattern */
+        .bg-pattern {
+            background-image:
+                radial-gradient(circle at 20% 80%, rgba(26, 26, 26, 0.02) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(26, 26, 26, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(26, 26, 26, 0.02) 0%, transparent 30%);
+        }
+
+        /* Elegant divider */
+        .divider-elegant {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+        }
+
+        /* Comparison badge */
+        .comparison-badge {
+            background: linear-gradient(135deg, #1A1A1A 0%, #2D2D2D 100%);
+        }
+
+        /* FAQ accordion */
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .faq-answer.open {
+            max-height: 500px;
+        }
+
+        .faq-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .faq-icon.rotate {
+            transform: rotate(180deg);
+        }
+
+        /* Mockup shadow */
+        .mockup-shadow {
+            box-shadow:
+                0 30px 60px -15px rgba(0, 0, 0, 0.12),
+                0 15px 30px -10px rgba(0, 0, 0, 0.08);
+        }
+
+        /* Image container */
+        .hero-image-container {
+            position: relative;
+        }
+
+        .hero-image-container::before {
+            content: '';
+            position: absolute;
+            inset: -20px;
+            background: linear-gradient(135deg, rgba(26, 26, 26, 0.03) 0%, transparent 50%);
+            border-radius: 24px;
+            z-index: -1;
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Focus states */
+        button:focus-visible,
+        a:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 3px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+
+        /* Price highlight */
+        .price-highlight {
+            position: relative;
+            display: inline-block;
+        }
+
+        .price-highlight::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: rgba(46, 125, 50, 0.2);
+            z-index: -1;
+        }
+    </style>
+</head>
+
+<body class="bg-light bg-pattern min-h-screen">
+
+    <!-- Order Notification Popup -->
+    <div id="notification-container" class="fixed bottom-4 left-4 z-50 flex flex-col gap-3 max-w-xs" aria-live="polite"
+        aria-label="Notifikasi pesanan"></div>
+
+    <!-- Hero Section -->
+    <section class="pt-6 pb-12 px-4 md:pt-12 md:pb-20">
+        <div class="max-w-3xl mx-auto">
+            <!-- Trust Badge -->
+            <div class="flex justify-center mb-5 animate-fade-in-up">
+                <div
+                    class="inline-flex items-center gap-2 bg-white border border-border rounded-full px-4 py-2 shadow-sm">
+                    <svg class="w-4 h-4 text-accent" fill="currentColor" viewBox="0 0 20 20">
+                        <path
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
+                    </svg>
+                    <span class="text-sm font-medium text-primary">Template Terlaris untuk Co-Parenting</span>
+                </div>
+            </div>
+
+            <!-- Headline -->
+            <h1
+                class="font-display text-3xl md:text-5xl font-bold text-primary text-center leading-tight mb-5 animate-fade-in-up stagger-1">
+                Co-Parenting Tanpa <span class="text-muted">Ribet</span> dan <span class="text-muted">Drama</span>
+            </h1>
+
+            <!-- Subheadline -->
+            <p class="text-lg md:text-xl text-muted text-center mb-8 max-w-2xl mx-auto animate-fade-in-up stagger-2">
+                Atur jadwal anak, pengeluaran, dan child support dalam satu template. <strong class="text-primary">Semua
+                    tercatat rapi.</strong> Tidak ada lagi debat panjang di chat.
+            </p>
+
+            <!-- Hero Image -->
+            <div class="hero-image-container mb-10 animate-fade-in-up stagger-3">
+                <div class="bg-white rounded-2xl p-2 md:p-3 mockup-shadow border border-border">
+                    <img src="https://i.ibb.co.com/4R0LcwS5/ccaf2a4a-0825-4905-98da-ae676662a3d0.png"
+                        alt="Co-Parenting Digital Planner - Template Google Sheets & Excel"
+                        class="w-full h-auto rounded-xl" loading="eager">
+                </div>
+
+                <!-- Floating badges -->
+                <div
+                    class="absolute -right-2 top-1/4 bg-white rounded-xl shadow-lg p-3 hidden md:flex items-center gap-2 animate-float border border-border">
+                    <div class="w-10 h-10 bg-primaryLight rounded-full flex items-center justify-center">
+                        <svg class="w-5 h-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                            <path fill-rule="evenodd"
+                                d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z"
+                                clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-primary">21 Tabs</p>
+                        <p class="text-xs text-muted">Lengkap</p>
+                    </div>
+                </div>
+
+                <div class="absolute -left-2 bottom-1/4 bg-white rounded-xl shadow-lg p-3 hidden md:flex items-center gap-2 animate-float border border-border"
+                    style="animation-delay: 1s;">
+                    <div class="w-10 h-10 bg-primaryLight rounded-full flex items-center justify-center">
+                        <svg class="w-5 h-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7zm6 7a1 1 0 011 1v3a1 1 0 11-2 0v-3a1 1 0 011-1zm-3 3a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm-3-1a1 1 0 011 1v2a1 1 0 11-2 0v-2a1 1 0 011-1z"
+                                clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold text-primary">Google Sheets</p>
+                        <p class="text-xs text-muted">& Excel</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CTA Button -->
+            <div class="text-center animate-fade-in-up stagger-4">
+                <button onclick="scrollToPrice()"
+                    class="btn-primary text-white font-bold text-lg px-8 py-4 rounded-xl inline-flex items-center gap-3 animate-pulse-subtle">
+                    <span>Beli Sekarang - Rp 99.000</span>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                </button>
+                <p class="text-sm text-muted mt-3">Akses langsung setelah pembayaran. Tidak perlu menunggu.</p>
+            </div>
+
+            <!-- Social Proof -->
+            <div class="flex flex-wrap justify-center gap-6 mt-8 animate-fade-in-up stagger-5">
+                <div class="flex items-center gap-2">
+                    <div class="flex -space-x-2">
+                        <div
+                            class="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white text-xs font-bold border-2 border-white">
+                            A</div>
+                        <div
+                            class="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-white text-xs font-bold border-2 border-white">
+                            B</div>
+                        <div
+                            class="w-8 h-8 rounded-full bg-primaryLight flex items-center justify-center text-primary text-xs font-bold border-2 border-white">
+                            C</div>
+                        <div
+                            class="w-8 h-8 rounded-full bg-border flex items-center justify-center text-primary text-xs font-bold border-2 border-white">
+                            +</div>
+                    </div>
+                    <span class="text-sm text-muted"><strong class="text-primary">2,400+</strong> orang tua sudah
+                        pakai</span>
+                </div>
+                <div class="flex items-center gap-1">
+                    <div class="flex">
+                        <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                        <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                    </div>
+                    <span class="text-sm text-muted"><strong class="text-primary">4.9/5</strong> rating</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Divider -->
+    <div class="divider-elegant max-w-3xl mx-auto"></div>
+
+    <!-- Problem Section -->
+    <section class="py-14 px-4 bg-white">
+        <div class="max-w-3xl mx-auto">
+            <div class="reveal">
+                <span
+                    class="inline-block bg-primaryLight text-primary text-sm font-medium px-4 py-1 rounded-full mb-4">Situasi
+                    yang Mungkin Anda Rasakan</span>
+                <h2 class="font-display text-2xl md:text-4xl font-bold text-primary mb-8">
+                    Co-Parenting Harusnya Dewasa... Tapi Kenyataannya?
+                </h2>
+            </div>
+
+            <div class="space-y-4 reveal">
+                <div class="flex gap-4 items-start p-4 bg-primaryLight rounded-xl border border-border card-hover">
+                    <div
+                        class="w-10 h-10 bg-white rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-primary mb-1">Jadwal sering berubah tapi tidak dicatat</h3>
+                        <p class="text-muted text-sm">Akhirnya saling salah paham soal siapa yang jaga anak kapan.</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 items-start p-4 bg-primaryLight rounded-xl border border-border card-hover">
+                    <div
+                        class="w-10 h-10 bg-white rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-primary mb-1">Pengeluaran anak tidak jelas siapa bayar apa</h3>
+                        <p class="text-muted text-sm">Uang SPP, les, dokter... siapa yang tanggung? Jadi debat tiap
+                            bulan.</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 items-start p-4 bg-primaryLight rounded-xl border border-border card-hover">
+                    <div
+                        class="w-10 h-10 bg-white rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-primary mb-1">Child support telat atau lupa</h3>
+                        <p class="text-muted text-sm">Harusnya rutin, tapi jadi pengingat terus-menerus. Capek.</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 items-start p-4 bg-primaryLight rounded-xl border border-border card-hover">
+                    <div
+                        class="w-10 h-10 bg-white rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-primary mb-1">Chat panjang cuma untuk bahas hal yang sama berulang
+                        </h3>
+                        <p class="text-muted text-sm">Setiap minggu bahasannya itu lagi. Setiap bulan ribut soal uang
+                            lagi.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Agitate Section -->
+    <section class="py-14 px-4 bg-gradient-to-b from-white to-primaryLight">
+        <div class="max-w-3xl mx-auto">
+            <div class="reveal">
+                <div class="bg-white rounded-2xl p-6 md:p-8 shadow-lg border border-border">
+                    <div class="text-center mb-6">
+                        <div
+                            class="w-16 h-16 bg-primaryLight rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                            </svg>
+                        </div>
+                        <h2 class="font-display text-2xl md:text-3xl font-bold text-primary mb-4">
+                            Dan yang Paling Capek?
+                        </h2>
+                    </div>
+
+                    <p class="text-lg text-center text-muted mb-6">
+                        Bukan cuma Anda yang merasakan dampaknya.
+                    </p>
+
+                    <div class="bg-primaryLight rounded-xl p-6 text-center">
+                        <p class="text-xl md:text-2xl font-semibold text-primary leading-relaxed">
+                            "Anak juga ikut merasakan tegangnya."
+                        </p>
+                        <p class="text-muted mt-3">
+                            Mereka dengar nada bicara yang tidak sedap. Mereka lihat ekspresi wajah yang tidak
+                            nyaman.<br>
+                            <strong class="text-primary">Padahal semua ini bisa dihindari dengan sistem yang
+                                jelas.</strong>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Solution Section -->
+    <section class="py-14 px-4 bg-primaryLight">
+        <div class="max-w-3xl mx-auto">
+            <div class="reveal">
+                <span
+                    class="inline-block bg-primary text-white text-sm font-medium px-4 py-1 rounded-full mb-4">Solusinya</span>
+                <h2 class="font-display text-2xl md:text-4xl font-bold text-primary mb-4">
+                    Bagaimana Kalau Semua Terorganisir dalam Satu Tempat?
+                </h2>
+                <p class="text-lg text-muted mb-10">
+                    Bukan cuma catatan biasa. Tapi sistem lengkap yang bisa diakses kapan saja, di mana saja.
+                </p>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 md:p-8 shadow-lg border border-border reveal">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-primary">Co-Parenting Digital Planner</h3>
+                        <p class="text-muted text-sm">Google Sheets & Excel Template</p>
+                    </div>
+                </div>
+
+                <p class="text-primary text-lg mb-6">
+                    <strong>21 Tabs lengkap</strong> — All in One. Semua sudah disiapkan. Tinggal pakai.
+                </p>
+
+                <div class="grid gap-3">
+                    <div class="flex items-center gap-3 p-3 bg-primaryLight rounded-lg">
+                        <svg class="w-5 h-5 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-primary"><strong>Setup</strong> — Atur nama orang tua, anak, dan preferensi
+                            dasar</span>
+                    </div>
+
+                    <div class="flex items-center gap-3 p-3 bg-primaryLight rounded-lg">
+                        <svg class="w-5 h-5 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-primary"><strong>Dashboard</strong> — Ringkasan cepat: jadwal, pembayaran,
+                            pengeluaran</span>
+                    </div>
+
+                    <div class="flex items-center gap-3 p-3 bg-primaryLight rounded-lg">
+                        <svg class="w-5 h-5 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-primary"><strong>Recurring Schedule</strong> — Jadwal rutin mingguan (tiap
+                            weekend dengan ayah/ibu)</span>
+                    </div>
+
+                    <div class="flex items-center gap-3 p-3 bg-primaryLight rounded-lg">
+                        <svg class="w-5 h-5 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-primary"><strong>Punctual Custody</strong> — Untuk jadwal khusus atau
+                            perubahan dadakan</span>
+                    </div>
+
+                    <div class="flex items-center gap-3 p-3 bg-primaryLight rounded-lg">
+                        <svg class="w-5 h-5 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-primary"><strong>Year at a Glance</strong> — Lihat 1 tahun penuh dalam satu
+                            tampilan</span>
+                    </div>
+
+                    <div class="flex items-center gap-3 p-3 bg-primaryLight rounded-lg">
+                        <svg class="w-5 h-5 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-primary"><strong>12x Monthly Calendar</strong> — Kalender bulanan detail &
+                            mudah dibaca</span>
+                    </div>
+
+                    <div class="flex items-center gap-3 p-3 bg-primaryLight rounded-lg">
+                        <svg class="w-5 h-5 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-primary"><strong>Expense Tracker</strong> — Catat semua pengeluaran anak,
+                            otomatis terakumulasi</span>
+                    </div>
+
+                    <div class="flex items-center gap-3 p-3 bg-primaryLight rounded-lg">
+                        <svg class="w-5 h-5 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-primary"><strong>Child Support</strong> — Pantau kewajiban dan histori
+                            pembayaran</span>
+                    </div>
+
+                    <div class="flex items-center gap-3 p-3 bg-primaryLight rounded-lg">
+                        <svg class="w-5 h-5 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-primary"><strong>Task Tracker</strong> — Tugas sekolah, janji dokter,
+                            aktivitas anak</span>
+                    </div>
+
+                    <div class="flex items-center gap-3 p-3 bg-primaryLight rounded-lg">
+                        <svg class="w-5 h-5 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-primary"><strong>Notes & Reflection</strong> — Catatan penting tanpa harus
+                            scroll chat panjang</span>
+                    </div>
+                </div>
+
+                <p class="text-center text-muted mt-6 text-sm">
+                    Dan masih banyak tab pendukung lainnya...
+                </p>
+
+                <div class="bg-primaryLight rounded-xl p-4 mt-6 text-center border border-border">
+                    <p class="text-primary font-medium">
+                        Semua sudah terstruktur.<br>
+                        <strong>Anda tinggal isi.</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Comparison Section -->
+    <section class="py-14 px-4 bg-white">
+        <div class="max-w-3xl mx-auto">
+            <div class="reveal">
+                <h2 class="font-display text-2xl md:text-4xl font-bold text-primary text-center mb-4">
+                    Perbandingan Sebelum dan Sesudah
+                </h2>
+                <p class="text-muted text-center mb-10">Lihat sendiri bedanya</p>
+            </div>
+
+            <div class="reveal">
+                <div class="grid gap-6">
+                    <!-- Before -->
+                    <div class="bg-primaryLight rounded-2xl p-6 border border-border">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
+                                <svg class="w-5 h-5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-bold text-muted">Sebelum Pakai Template</h3>
+                        </div>
+                        <ul class="space-y-2">
+                            <li class="flex items-start gap-2">
+                                <svg class="w-5 h-5 text-muted flex-shrink-0 mt-0.5" fill="currentColor"
+                                    viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <span class="text-primary">Chat WA panjang untuk bahas jadwal yang sama</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <svg class="w-5 h-5 text-muted flex-shrink-0 mt-0.5" fill="currentColor"
+                                    viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <span class="text-primary">Lupa siapa bayar apa bulan ini</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <svg class="w-5 h-5 text-muted flex-shrink-0 mt-0.5" fill="currentColor"
+                                    viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <span class="text-primary">Debat soal uang tiap akhir bulan</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <svg class="w-5 h-5 text-muted flex-shrink-0 mt-0.5" fill="currentColor"
+                                    viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <span class="text-primary">Tidak ada catatan resmi yang bisa dibuktikan</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- After -->
+                    <div class="bg-white rounded-2xl p-6 border-2 border-primary relative overflow-hidden shadow-md">
+                        <div class="absolute top-4 right-4">
+                            <span
+                                class="comparison-badge text-white text-xs font-bold px-3 py-1 rounded-full">Rekomendasi</span>
+                        </div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-primaryLight rounded-full flex items-center justify-center">
+                                <svg class="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-bold text-primary">Sesudah Pakai Template</h3>
+                        </div>
+                        <ul class="space-y-2">
+                            <li class="flex items-start gap-2">
+                                <svg class="w-5 h-5 text-success flex-shrink-0 mt-0.5" fill="currentColor"
+                                    viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <span class="text-primary">Semua jadwal terlihat jelas dalam satu dashboard</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <svg class="w-5 h-5 text-success flex-shrink-0 mt-0.5" fill="currentColor"
+                                    viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <span class="text-primary">Pengeluaran tercatat otomatis dengan detail</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <svg class="w-5 h-5 text-success flex-shrink-0 mt-0.5" fill="currentColor"
+                                    viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <span class="text-primary">Child support terpantau tanpa harus mengingat</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <svg class="w-5 h-5 text-success flex-shrink-0 mt-0.5" fill="currentColor"
+                                    viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <span class="text-primary">Dokumentasi rapi yang bisa dibagikan ke mantan
+                                    pasangan</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="py-14 px-4 bg-light">
+        <div class="max-w-3xl mx-auto">
+            <div class="reveal">
+                <h2 class="font-display text-2xl md:text-4xl font-bold text-primary text-center mb-4">
+                    Kata Mereka yang Sudah Pakai
+                </h2>
+                <p class="text-muted text-center mb-10">Pengalaman nyata dari orang tua yang sudah menggunakan template
+                    ini</p>
+            </div>
+
+            <div class="space-y-6 reveal">
+                <!-- Testimonial 1 -->
+                <div class="bg-white rounded-2xl p-6 shadow-md border border-border card-hover">
+                    <div class="flex items-start gap-4">
+                        <div
+                            class="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                            S
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-1 mb-2">
+                                <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                                <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                                <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                                <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                                <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                            </div>
+                            <p class="text-primary mb-3">
+                                "Dulu tiap bulan pasti debat soal uang. Sekarang tinggal buka sheet, semua jelas.
+                                <strong>Mantanku juga bisa akses</strong> jadi gak ada yang ngerasa dirugikan."
+                            </p>
+                            <p class="text-sm text-muted">— Sari, Jakarta Selatan</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Testimonial 2 -->
+                <div class="bg-white rounded-2xl p-6 shadow-md border border-border card-hover">
+                    <div class="flex items-start gap-4">
+                        <div
+                            class="w-12 h-12 bg-accent rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                            B
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-1 mb-2">
+                                <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                                <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                                <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                                <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                                <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                            </div>
+                            <p class="text-primary mb-3">
+                                "Sebagai ayah yang jarang ketemu anak, <strong>template ini bikin aku tetap bisa pantau
+                                    kebutuhan anak</strong>. Expense trackernya sangat membantu."
+                            </p>
+                            <p class="text-sm text-muted">— Budi, Surabaya</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Testimonial 3 -->
+                <div class="bg-white rounded-2xl p-6 shadow-md border border-border card-hover">
+                    <div class="flex items-start gap-4">
+                        <div
+                            class="w-12 h-12 bg-muted rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                            D
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-1 mb-2">
+                                <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                                <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                                <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                                <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                                <svg class="w-4 h-4 text-warning" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                            </div>
+                            <p class="text-primary mb-3">
+                                "Gak nyangka bisa secepat ini setup. <strong>15 menit udah beres</strong>, semua tab
+                                udah siap. Anak-anak juga senang karena gak ada lagi debat di depan mereka."
+                            </p>
+                            <p class="text-sm text-muted">— Dewi, Bandung</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="py-14 px-4 bg-white">
+        <div class="max-w-3xl mx-auto">
+            <div class="reveal">
+                <div class="text-center mb-8">
+                    <span
+                        class="inline-block bg-primary text-white text-sm font-bold px-4 py-1 rounded-full mb-4">One-Time
+                        Offer</span>
+                    <h2 class="font-display text-2xl md:text-4xl font-bold text-primary mb-4">
+                        Investasi untuk Ketenangan Keluarga
+                    </h2>
+                    <p class="text-muted">Bukan biaya bulanan. Bayar sekali, pakai selamanya.</p>
+                </div>
+            </div>
+
+            <div class="reveal">
+                <div
+                    class="bg-white rounded-3xl p-6 md:p-10 shadow-2xl border-2 border-primary relative overflow-hidden">
+                    <!-- Decorative elements -->
+                    <div
+                        class="absolute top-0 right-0 w-40 h-40 bg-primaryLight rounded-full -translate-y-1/2 translate-x-1/2">
+                    </div>
+                    <div
+                        class="absolute bottom-0 left-0 w-32 h-32 bg-primaryLight rounded-full translate-y-1/2 -translate-x-1/2">
+                    </div>
+
+                    <div class="relative">
+                        <div class="text-center mb-8">
+                            <p class="text-muted text-lg mb-2">Harga Normal</p>
+                            <p class="text-3xl text-muted line-through">Rp 199.000</p>
+                        </div>
+
+                        <div class="text-center mb-8">
+                            <p class="text-primary text-lg mb-2 font-medium">Harga Promo Hari Ini</p>
+                            <p class="text-5xl md:text-6xl font-bold text-primary">Rp <span
+                                    class="price-highlight">99.000</span></p>
+                            <p class="text-success font-medium mt-2">Hemat Rp 100.000</p>
+                        </div>
+
+                        <div class="bg-primaryLight rounded-xl p-4 mb-8 border border-border">
+                            <p class="text-primary text-center font-medium">
+                                Akses seumur hidup. Tidak ada biaya tersembunyi.
+                            </p>
+                        </div>
+
+                        <div class="space-y-3 mb-8">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-6 h-6 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <span class="text-primary">21 Tabs lengkap Google Sheets & Excel</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <svg class="w-6 h-6 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <span class="text-primary">Video tutorial cara pakai</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <svg class="w-6 h-6 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <span class="text-primary">Bisa dibagikan ke mantan pasangan</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <svg class="w-6 h-6 text-success flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <span class="text-primary">Update gratis selamanya</span>
+                            </div>
+                        </div>
+
+                        <button onclick="handleBuy()"
+                            class="btn-primary w-full text-white font-bold text-xl px-8 py-5 rounded-xl animate-pulse-subtle">
+                            Beli Sekarang
+                        </button>
+
+                        <p class="text-center text-sm text-muted mt-4">
+                            Pembayaran aman via Midtrans. Link akses dikirim otomatis ke email.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Guarantee Section -->
+    <section class="py-14 px-4 bg-primaryLight">
+        <div class="max-w-3xl mx-auto">
+            <div class="reveal">
+                <div class="bg-white rounded-2xl p-6 md:p-8 shadow-lg border border-border text-center">
+                    <div class="w-20 h-20 bg-primaryLight rounded-full flex items-center justify-center mx-auto mb-6">
+                        <svg class="w-10 h-10 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                    </div>
+
+                    <h2 class="font-display text-2xl md:text-3xl font-bold text-primary mb-4">
+                        Jaminan 7 Hari Uang Kembali
+                    </h2>
+
+                    <p class="text-muted text-lg mb-6 max-w-xl mx-auto">
+                        Jika setelah menggunakan template ini Anda merasa tidak sesuai kebutuhan, cukup hubungi kami
+                        dalam 7 hari. Kami akan mengembalikan pembayaran Anda tanpa pertanyaan rumit.
+                    </p>
+
+                    <div
+                        class="inline-flex items-center gap-2 bg-primaryLight text-primary px-4 py-2 rounded-full border border-border">
+                        <svg class="w-5 h-5 text-success" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span class="font-medium">Tanpa ribet, tanpa syarat tersembunyi</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="py-14 px-4 bg-white">
+        <div class="max-w-3xl mx-auto">
+            <div class="reveal">
+                <h2 class="font-display text-2xl md:text-4xl font-bold text-primary text-center mb-4">
+                    Pertanyaan yang Sering Diajukan
+                </h2>
+                <p class="text-muted text-center mb-10">Jawaban untuk keraguan Anda</p>
+            </div>
+
+            <div class="space-y-4 reveal">
+                <!-- FAQ Item 1 -->
+                <div class="bg-white rounded-xl border border-border overflow-hidden">
+                    <button onclick="toggleFAQ(this)" class="w-full flex items-center justify-between p-5 text-left"
+                        aria-expanded="false">
+                        <span class="font-semibold text-primary pr-4">Apakah saya perlu mahir Google Sheets atau
+                            Excel?</span>
+                        <svg class="faq-icon w-5 h-5 text-muted flex-shrink-0" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div class="faq-answer">
+                        <p class="px-5 pb-5 text-muted">
+                            Tidak perlu. Template ini sudah siap pakai. Kami juga menyediakan video tutorial yang
+                            menjelaskan cara mengisi setiap bagian. Cukup ikuti langkah-langkahnya.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 2 -->
+                <div class="bg-white rounded-xl border border-border overflow-hidden">
+                    <button onclick="toggleFAQ(this)" class="w-full flex items-center justify-between p-5 text-left"
+                        aria-expanded="false">
+                        <span class="font-semibold text-primary pr-4">Apakah mantan pasangan saya bisa akses
+                            juga?</span>
+                        <svg class="faq-icon w-5 h-5 text-muted flex-shrink-0" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div class="faq-answer">
+                        <p class="px-5 pb-5 text-muted">
+                            Bisa. Untuk Google Sheets, Anda tinggal share link ke mantan pasangan. Keduanya bisa melihat
+                            dan mengedit sesuai kesepakatan. Transparansi terjaga.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 3 -->
+                <div class="bg-white rounded-xl border border-border overflow-hidden">
+                    <button onclick="toggleFAQ(this)" class="w-full flex items-center justify-between p-5 text-left"
+                        aria-expanded="false">
+                        <span class="font-semibold text-primary pr-4">Bagaimana cara mendapatkan template setelah
+                            bayar?</span>
+                        <svg class="faq-icon w-5 h-5 text-muted flex-shrink-0" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div class="faq-answer">
+                        <p class="px-5 pb-5 text-muted">
+                            Link download dan akses akan dikirim otomatis ke email Anda dalam beberapa menit setelah
+                            pembayaran berhasil. Cek folder inbox atau spam.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 4 -->
+                <div class="bg-white rounded-xl border border-border overflow-hidden">
+                    <button onclick="toggleFAQ(this)" class="w-full flex items-center justify-between p-5 text-left"
+                        aria-expanded="false">
+                        <span class="font-semibold text-primary pr-4">Apakah ada biaya bulanan atau tahunan?</span>
+                        <svg class="faq-icon w-5 h-5 text-muted flex-shrink-0" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div class="faq-answer">
+                        <p class="px-5 pb-5 text-muted">
+                            Tidak ada. Pembayaran hanya sekali seumur hidup. Anda juga mendapat update gratis jika ada
+                            penambahan fitur baru di kemudian hari.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 5 -->
+                <div class="bg-white rounded-xl border border-border overflow-hidden">
+                    <button onclick="toggleFAQ(this)" class="w-full flex items-center justify-between p-5 text-left"
+                        aria-expanded="false">
+                        <span class="font-semibold text-primary pr-4">Apakah data saya aman?</span>
+                        <svg class="faq-icon w-5 h-5 text-muted flex-shrink-0" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div class="faq-answer">
+                        <p class="px-5 pb-5 text-muted">
+                            Data Anda tersimpan di akun Google pribadi Anda. Kami tidak memiliki akses ke data apapun.
+                            Keamanan mengikuti standar Google.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Trust Badges -->
+    <section class="py-12 px-4 bg-light">
+        <div class="max-w-3xl mx-auto">
+            <div class="reveal">
+                <p class="text-center text-muted text-sm mb-6">Dipercaya oleh orang tua di seluruh Indonesia</p>
+                <div class="flex flex-wrap justify-center items-center gap-6 md:gap-10">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-8 h-8 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-sm font-medium text-primary">Pembayaran Aman</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <svg class="w-8 h-8 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2H7V7a3 3 0 015.905-.75 1 1 0 001.937-.5A5.002 5.002 0 0010 2z" />
+                        </svg>
+                        <span class="text-sm font-medium text-primary">Data Terlindungi</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <svg class="w-8 h-8 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-sm font-medium text-primary">Garansi 7 Hari</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="py-14 px-4 bg-primary">
+        <div class="max-w-3xl mx-auto text-center">
+            <div class="reveal">
+                <h2 class="font-display text-2xl md:text-4xl font-bold text-white mb-4">
+                    Saatnya Co-Parenting yang Lebih Tenang
+                </h2>
+                <p class="text-gray-300 text-lg mb-8 max-w-xl mx-auto">
+                    Tidak perlu lagi debat panjang soal jadwal atau uang. Semua terorganisir rapi dalam satu tempat.
+                </p>
+
+                <button onclick="scrollToPrice()"
+                    class="bg-white text-primary font-bold text-lg px-10 py-4 rounded-xl inline-flex items-center gap-3 transition-all duration-300 hover:bg-primaryLight hover:shadow-xl">
+                    <span>Mulai Sekarang</span>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                </button>
+
+                <p class="text-gray-400 text-sm mt-4">
+                    Akses langsung setelah pembayaran
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-8 px-4 bg-primaryDark border-t border-gray-800">
+        <div class="max-w-3xl mx-auto text-center">
+            <p class="text-gray-400 text-sm mb-2">
+                Co-Parenting Digital Planner
+            </p>
+            <p class="text-gray-600 text-xs">
+                Dibuat dengan penuh perhatian untuk keluarga Indonesia
+            </p>
+        </div>
+    </footer>
+
+    <!-- Sticky Mobile CTA -->
+    <div id="sticky-cta"
+        class="fixed bottom-0 left-0 right-0 bg-white border-t border-border p-4 md:hidden z-40 transform translate-y-full transition-transform duration-300">
+        <div class="flex items-center justify-between gap-4">
+            <div>
+                <p class="text-sm text-muted line-through">Rp 199.000</p>
+                <p class="text-xl font-bold text-primary">Rp 99.000</p>
+            </div>
+            <button onclick="handleBuy()" class="btn-primary text-white font-bold px-6 py-3 rounded-xl">
+                Beli Sekarang
+            </button>
+        </div>
+        <p class="text-xs text-muted text-center mt-2">Pembayaran aman via Midtrans</p>
+    </div>
+
+    <script>
+        // Initialize variables first
+        const notificationContainer = document.getElementById('notification-container');
+        const stickyCTA = document.getElementById('sticky-cta');
+
+        // Buyer names and cities data
+        const buyerNames = [
+            'Sari', 'Budi', 'Dewi', 'Andi', 'Rina', 'Tono', 'Maya', 'Agus',
+            'Lina', 'Rudi', 'Siti', 'Wawan', 'Nina', 'Dodi', 'Ratna', 'Yudi'
+        ];
+
+        const cities = [
+            'Jakarta', 'Surabaya', 'Bandung', 'Medan', 'Semarang', 'Makassar',
+            'Palembang', 'Tangerang', 'Depok', 'Bekasi', 'Bogor', 'Malang',
+            'Yogyakarta', 'Denpasar', 'Balikpapan', 'Pekanbaru'
+        ];
+
+        // Check for reduced motion preference
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        // Scroll reveal
+        function initScrollReveal() {
+            const reveals = document.querySelectorAll('.reveal');
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('active');
+                    }
+                });
+            }, {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            });
+
+            reveals.forEach(el => observer.observe(el));
+        }
+
+        // FAQ Toggle
+        function toggleFAQ(button) {
+            const answer = button.nextElementSibling;
+            const icon = button.querySelector('.faq-icon');
+            const isOpen = answer.classList.contains('open');
+
+            // Close all others
+            document.querySelectorAll('.faq-answer').forEach(a => a.classList.remove('open'));
+            document.querySelectorAll('.faq-icon').forEach(i => i.classList.remove('rotate'));
+
+            if (!isOpen) {
+                answer.classList.add('open');
+                icon.classList.add('rotate');
+                button.setAttribute('aria-expanded', 'true');
+            } else {
+                button.setAttribute('aria-expanded', 'false');
+            }
+        }
+
+        // Scroll to pricing
+        function scrollToPrice() {
+            const pricing = document.getElementById('pricing');
+            if (pricing) {
+                pricing.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // Handle buy
+        function handleBuy() {
+            // In production, this would redirect to payment gateway
+            alert('Mengarahkan ke halaman pembayaran...');
+        }
+
+        // Notification popup system
+        let notificationCount = 0;
+        const maxNotifications = 5;
+
+        function createNotification() {
+            if (notificationCount >= maxNotifications) return;
+
+            const name = buyerNames[Math.floor(Math.random() * buyerNames.length)];
+            const city = cities[Math.floor(Math.random() * cities.length)];
+
+            const notification = document.createElement('div');
+            notification.className = 'notification-popup bg-white rounded-xl shadow-2xl p-4 border border-border max-w-xs';
+            notification.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 bg-primaryLight rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2H7V7a3 3 0 015.905-.75 1 1 0 001.937-.5A5.002 5.002 0 0010 2z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-primary">${name} dari ${city}</p>
+                        <p class="text-xs text-muted">baru saja membeli Co-Parenting Planner</p>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove(); notificationCount--;" class="text-muted hover:text-primary">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+
+            notificationContainer.appendChild(notification);
+            notificationCount++;
+
+            // Play subtle sound (if supported)
+            if (!prefersReducedMotion) {
+                playNotificationSound();
+            }
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.classList.add('hide');
+                    setTimeout(() => {
+                        notification.remove();
+                        notificationCount--;
+                    }, 300);
+                }
+            }, 5000);
+        }
+
+        // Subtle notification sound
+        function playNotificationSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+                gainNode.gain.value = 0.08;
+
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.08);
+            } catch (e) {
+                // Silently fail if audio not supported
+            }
+        }
+
+        // Sticky CTA on scroll
+        function handleStickyCTA() {
+            const scrollY = window.scrollY;
+            const windowHeight = window.innerHeight;
+
+            if (scrollY > windowHeight * 0.5) {
+                stickyCTA.classList.remove('translate-y-full');
+            } else {
+                stickyCTA.classList.add('translate-y-full');
+            }
+        }
+
+        // Initialize everything after DOM is ready
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialize scroll reveal
+            initScrollReveal();
+
+            // Start notification system (after 3 seconds, then every 15-30 seconds)
+            if (!prefersReducedMotion) {
+                setTimeout(() => {
+                    createNotification();
+                    setInterval(() => {
+                        const delay = Math.random() * 15000 + 15000; // 15-30 seconds
+                        setTimeout(createNotification, delay);
+                    }, 20000);
+                }, 3000);
+            }
+
+            // Sticky CTA scroll handler
+            window.addEventListener('scroll', handleStickyCTA, { passive: true });
+        });
+    </script>
+</body>
+
+</html>

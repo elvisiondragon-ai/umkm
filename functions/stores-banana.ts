@@ -13,12 +13,12 @@ serve(async (req) => {
     try {
         console.log("Receiving Nano Banana Request...");
         const { prompt, imageBase64 } = await req.json()
-        // Hardcoded API Keys
-        const openRouterApiKey = "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";
-        const geminiKey2 = "AIzaSyCsOMP4xV4wwkbRbotViXuP_muIXYjiNX8";
+        // Retrieve API Keys from environment variables
+        const openRouterApiKey = Deno.env.get("OPENROUTER_APIKEY");
+        const geminiKey2 = Deno.env.get("GEMINI_KEY_2");
 
         if (!openRouterApiKey && !geminiKey2) {
-            console.error("CRITICAL: Missing OPENROUTER_APIKEY and GEMINI_KEY_2 variables.");
+            console.error("CRITICAL: Missing environment variables for API keys.");
             throw new Error("Missing API keys for AI generator")
         }
 
