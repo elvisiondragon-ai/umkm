@@ -1881,19 +1881,18 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                     <div className="flex items-center justify-between mt-3">
                       <span className="text-xs md:text-sm font-bold text-secondary truncate pr-1">{formatRp(p.price)}</span>
                       {demoCart[p.id.toString()] > 0 ? (
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button onClick={() => setDemoCart({ ...demoCart, [p.id.toString()]: demoCart[p.id.toString()] - 1 })} className="w-6 h-6 rounded-full bg-secondary/10 text-secondary flex items-center justify-center font-bold pb-0.5 hover:bg-secondary/20 transition-colors">-</button>
+                        <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={(e) => { e.stopPropagation(); setDemoCart({ ...demoCart, [p.id.toString()]: demoCart[p.id.toString()] - 1 }); }} className="w-6 h-6 rounded-full bg-secondary/10 text-secondary flex items-center justify-center font-bold pb-0.5 hover:bg-secondary/20 transition-colors">-</button>
                           <span className="font-bold text-xs min-w-[12px] text-center">{demoCart[p.id.toString()]}</span>
-                          <button onClick={() => setDemoCart({ ...demoCart, [p.id.toString()]: demoCart[p.id.toString()] + 1 })} className="w-6 h-6 rounded-full bg-secondary text-white flex items-center justify-center font-bold pb-0.5 hover:bg-secondary/90 transition-colors">+</button>
+                          <button onClick={(e) => { e.stopPropagation(); setDemoCart({ ...demoCart, [p.id.toString()]: demoCart[p.id.toString()] + 1 }); }} className="w-6 h-6 rounded-full bg-secondary text-white flex items-center justify-center font-bold pb-0.5 hover:bg-secondary/90 transition-colors">+</button>
                         </div>
                       ) : (
-                        <button onClick={() => setDemoCart({ ...demoCart, [p.id.toString()]: 1 })} className="text-[10px] md:text-xs font-semibold px-2.5 py-1 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors shrink-0">
+                        <button onClick={(e) => { e.stopPropagation(); setDemoCart({ ...demoCart, [p.id.toString()]: 1 }); }} className="text-[10px] md:text-xs font-semibold px-2.5 py-1 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors shrink-0">
                           Beli
                         </button>
                       )}
                     </div>
-                  </div>
-                </div>
+                  </div>                </div>
               ))}
             </div>
           )}
@@ -1993,11 +1992,10 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
               // Open WhatsApp
               window.open(`https://wa.me/${formatWaNumber(store?.wa_number || '')}?text=${encodeURIComponent(generateOrderWaText())}`, '_blank');
             }}
-            className="w-full py-3 rounded-xl bg-success/10 border border-success/30 text-success font-semibold text-sm flex items-center justify-center gap-2 hover:bg-success hover:text-white transition-all shadow-sm"
+            className="w-full py-4 rounded-xl bg-[#25D366] text-white font-black text-base flex items-center justify-center gap-2 hover:bg-[#20ba5a] transition-all shadow-lg active:scale-95"
           >
-            <Send className="w-4 h-4" /> Pesan via WhatsApp
-          </button>
-        </div>
+            <Send className="w-5 h-5 fill-current" /> PESAN VIA WHATSAPP (SELESAIKAN)
+          </button>        </div>
       </section>
 
       {/* Payment Info */}
@@ -2045,9 +2043,10 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
           <div className="absolute top-0 left-0 right-0 z-10 p-4 pointer-events-none flex">
             <button
               onClick={() => setSelectedProduct(null)}
-              className="w-10 h-10 rounded-full bg-background/80 backdrop-blur-md border shadow-sm flex items-center justify-center hover:bg-muted transition-colors pointer-events-auto"
+              className="h-12 px-4 rounded-full bg-background/90 backdrop-blur-md border border-slate-200 shadow-md flex items-center gap-2 hover:bg-muted transition-all pointer-events-auto active:scale-95"
             >
               <ArrowLeft className="w-5 h-5 text-foreground" />
+              <span className="font-bold text-sm text-foreground pr-2">⬅️ Kembali</span>
             </button>
           </div>
 
@@ -2075,12 +2074,21 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
 
           {/* Sticky Buy Button in Modal */}
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t z-30 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
-            <div className="max-w-lg mx-auto flex items-center justify-between gap-4">
+            <div className="max-w-lg mx-auto flex flex-col gap-3">
+              {demoCart[selectedProduct.id.toString()] > 0 && (
+                <div className="flex justify-between items-center px-2">
+                  <span className="text-sm font-medium text-muted-foreground">Subtotal ({demoCart[selectedProduct.id.toString()]} item)</span>
+                  <span className="text-lg font-bold text-secondary">{formatRp(selectedProduct.price * demoCart[selectedProduct.id.toString()])}</span>
+                </div>
+              )}
               <div className="flex-1">
                 {demoCart[selectedProduct.id.toString()] > 0 ? (
-                  <div className="flex items-center justify-between gap-4 px-6 py-2 rounded-2xl border border-secondary/20 bg-secondary/5">
+                  <div className="flex items-center justify-between gap-4 px-6 py-2 rounded-2xl border-2 border-secondary bg-secondary/5">
                     <button onClick={() => setDemoCart({ ...demoCart, [selectedProduct.id.toString()]: demoCart[selectedProduct.id.toString()] - 1 })} className="w-12 h-12 rounded-full bg-background border shadow-sm text-secondary flex items-center justify-center font-black text-2xl hover:bg-secondary/10 transition-colors">-</button>
-                    <span className="font-black text-2xl min-w-[32px] text-center text-foreground">{demoCart[selectedProduct.id.toString()]}</span>
+                    <div className="flex flex-col items-center">
+                      <span className="font-black text-2xl leading-none text-foreground">{demoCart[selectedProduct.id.toString()]}</span>
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase mt-1">Jumlah</span>
+                    </div>
                     <button onClick={() => setDemoCart({ ...demoCart, [selectedProduct.id.toString()]: demoCart[selectedProduct.id.toString()] + 1 })} className="w-12 h-12 rounded-full bg-secondary text-white flex items-center justify-center font-black text-2xl shadow-md hover:opacity-90 transition-opacity">+</button>
                   </div>
                 ) : (
@@ -2096,7 +2104,6 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
           </div>
         </div>
       )}
-
     </div>
   );
 
@@ -2815,16 +2822,16 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                 <label className="text-sm font-semibold text-foreground mb-1 block">Web URL (Alias)</label>
                 <div className="flex flex-col gap-2">
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">umkm.elvisiongroup.com/</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">@</span>
                     <input
                       type="text"
                       value={storeSettingsForm.alias}
                       onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, alias: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
-                      className="w-full pl-[185px] pr-4 py-3 rounded-xl border bg-background text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                      className="w-full pl-8 pr-4 py-3 rounded-xl border bg-background text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground mt-1">*Bisa diganti (hanya huruf, angka, dan strip).</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Alias unik toko Anda. Link lengkap: umkm.elvisiongroup.com/{storeSettingsForm.alias}</p>
                     <button
                       type="button"
                       onClick={async (e) => {
@@ -2853,7 +2860,6 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                   </div>
                 </div>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-semibold text-foreground mb-1 block">Rekening Pembayaran (BCA/Mandiri dll)</label>
