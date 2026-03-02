@@ -6,7 +6,7 @@ import {
   Package, TrendingUp, Users, DollarSign, ArrowLeft, Store, Menu, X,
   Send, MapPin, Phone, Instagram, Facebook, Home, LogOut, LayoutDashboard,
   Settings, User as UserIcon, UploadCloud, Image as ImageIcon, CheckCircle2,
-  Lock, ArrowRight, Activity, Inbox, Copy, ExternalLink, Share2
+  Lock, ArrowRight, Activity, Inbox, Copy, ExternalLink, Share2, ShoppingBag
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { toast, Toaster } from "sonner";
@@ -167,7 +167,7 @@ const statusColors: Record<OrderStatus, string> = {
 const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
   const [view, setView] = useState<View>(bypassHome ? "login" : "home");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [orderForm, setOrderForm] = useState({ nama: "", wa: "", alamat: "", catatan: "", paymentMethod: "transfer", deliveryMethod: "dikirim" });
+  const [orderForm, setOrderForm] = useState({ nama: "", wa: "", email: "", alamat: "", catatan: "", paymentMethod: "transfer", deliveryMethod: "dikirim" });
   const [demoOrderForm, setDemoOrderForm] = useState({ nama: "", wa: "", alamat: "", catatan: "", paymentMethod: "cod" });
   const [demoCart, setDemoCart] = useState<Record<string, number>>({});
   const [showDemoOutput, setShowDemoOutput] = useState(false);
@@ -194,7 +194,11 @@ const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
   const [store, setStore] = useState<DBStore | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]); // Orders as a SELLER
+  const [myPurchases, setMyPurchases] = useState<any[]>([]); // Orders as a BUYER
+  const [myReviews, setMyReviews] = useState<any[]>([]); // Reviews by BUYER on dashboard
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewingOrder, setReviewingOrder] = useState<any>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
 
@@ -242,14 +246,27 @@ const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
 
           if (productsData) setProducts(productsData);
 
-          // Fetch reviews
-          const { data: reviewsData } = await supabase
+          // Fetch reviews directly (reviewer_name is already stored on insert)
+          const { data: reviewsData, error: reviewsErr } = await supabase
             .from('stores_reviews')
             .select('*')
             .eq('store_id', storeData.id)
             .order('created_at', { ascending: false });
 
-          if (reviewsData) setReviews(reviewsData || []);
+          if (reviewsErr) {
+            console.error("Error fetching reviews:", reviewsErr);
+          }
+
+          if (reviewsData && reviewsData.length > 0) {
+            // Ensure reviewer_name has a fallback
+            const mappedReviews = reviewsData.map((r: any) => ({
+              ...r,
+              reviewer_name: r.reviewer_name || "Pembeli Rahasia"
+            }));
+            setReviews(mappedReviews);
+          } else {
+            setReviews([]);
+          }
 
           // Enable Realtime Subscription for Reviews
           reviewSubscription = supabase
@@ -275,6 +292,35 @@ const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
             .subscribe();
 
           setView("live-store");
+
+          // Handle special hashes (like directing to a specific review form state)
+          setTimeout(() => {
+            const hash = window.location.hash;
+            if (hash.startsWith("#review-form-edit-")) {
+              const reviewIdToEdit = hash.replace("#review-form-edit-", "");
+
+              // Find the review to edit from the just fetched reviews
+              // Note: The review must belong to the current user. Since we are in the store page, 
+              // we can just check if it exists in the fetched public reviews and we own it.
+              // To ensure security, RLS handles actual update. Just populate the UI.
+              if (reviewsData) {
+                const reviewToEdit = reviewsData.find(r => r.id === reviewIdToEdit);
+                if (reviewToEdit) {
+                  setEditingReviewId(reviewToEdit.id);
+                  setNewReview({ rating: reviewToEdit.rating, text: reviewToEdit.review_text });
+                }
+              }
+
+              const el = document.getElementById("review-form");
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+
+              // Clear hash without scroll
+              window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            } else if (hash === "#review-form") {
+              const el = document.getElementById("review-form");
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }
+          }, 500);
 
           // Increment page views
           supabase.from("page_views").insert({ store_id: storeData.id, user_agent: navigator.userAgent }).then();
@@ -488,6 +534,7 @@ const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
 📝 *Data Pembeli*
 Nama: ${orderForm.nama || "[Nama Anda]"}
 Wa: ${formatWaNumber(orderForm.wa) || "[No WA]"}
+Email: ${orderForm.email || "[Email Anda]"}
 Alamat: ${orderForm.alamat || "[Alamat Lengkap]"}
 Catatan: ${orderForm.catatan || "-"}${paymentText}${deliveryText}
 
@@ -595,7 +642,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
           .eq('store_id', activeStore.id);
         if (productsData) setProducts(productsData);
 
-        // Fetch orders
+        // Fetch orders (Seller view)
         const { data: ordersData } = await supabase
           .from('stores_orders')
           .select('*')
@@ -605,6 +652,46 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
           setOrders(ordersData);
           const revenue = ordersData.reduce((sum: number, o: any) => sum + (parseFloat(o.total_amount) || 0), 0);
           setTotalRevenue(revenue);
+        }
+
+        // Fetch my purchases (Buyer view)
+        // Use user.email directly as it's more reliable than profileData
+        const buyerEmail = user?.email || profileData?.user_email;
+        if (buyerEmail) {
+          const { data: purchasesData, error: purchaseErr } = await supabase
+            .from('stores_orders')
+            .select('*, store:stores(alias, name, id)') // Use store:stores to map correctly if relation is implicit
+            .eq('customer_email', buyerEmail)
+            .order('created_at', { ascending: false });
+
+          let myOrdersData = [];
+          if (purchaseErr) {
+            console.error("Error fetching my purchases:", purchaseErr);
+            // Fallback without join if relation fails
+            const { data: fallbackData } = await supabase
+              .from('stores_orders')
+              .select('*')
+              .eq('customer_email', buyerEmail)
+              .order('created_at', { ascending: false });
+            if (fallbackData) {
+              setMyPurchases(fallbackData);
+              myOrdersData = fallbackData;
+            }
+          } else if (purchasesData) {
+            setMyPurchases(purchasesData);
+            myOrdersData = purchasesData;
+          }
+
+          // Fetch my reviews based on my orders
+          if (myOrdersData.length > 0) {
+            const orderIds = myOrdersData.map((o: any) => o.id);
+            const { data: reviewsData } = await supabase
+              .from('stores_reviews')
+              .select('*')
+              .in('order_id', orderIds);
+
+            if (reviewsData) setMyReviews(reviewsData);
+          }
         }
 
         // Fetch page views (today)
@@ -624,17 +711,96 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
 
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
 
+  // Verified Review States
+  const [isVerifiedBuyer, setIsVerifiedBuyer] = useState(false);
+  const [verifiedOrder, setVerifiedOrder] = useState<any>(null);
+  const [hasReviewedAllOrders, setHasReviewedAllOrders] = useState(false); // NEW STATE
+
+  // Auto-fill order form if user is logged in
+  useEffect(() => {
+    if (user && !orderForm.email) {
+      setOrderForm(prev => ({
+        ...prev,
+        email: user.email,
+        nama: displayName || prev.nama
+      }));
+    }
+  }, [user, displayName]);
+
+  // Auto-verify buyer via EMAIL (The most stable identity)
+  useEffect(() => {
+    const autoVerify = async () => {
+      // Priority: Logged in user email > order form email > localStorage
+      const currentEmail = user?.email || orderForm.email || localStorage.getItem(`buyer_email_${store?.id}`);
+
+      if (!currentEmail || !store?.id || !currentEmail.includes('@')) {
+        setIsVerifiedBuyer(false);
+        setHasReviewedAllOrders(false);
+        return;
+      }
+
+      try {
+        console.log("🔍 Auto-verifying buyer for EMAIL:", currentEmail);
+
+        // Find latest order for this Email strictly using customer_email
+        const { data, error } = await supabase
+          .from('stores_orders')
+          .select('*')
+          .eq('store_id', store.id)
+          .eq('customer_email', currentEmail.trim())
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (error) {
+          console.error("❌ Email Verify Error:", error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          const order = data[0];
+          console.log("✅ Order Found for Email:", order);
+
+          // Check if already reviewed
+          const { data: existingReview } = await supabase
+            .from('stores_reviews')
+            .select('id')
+            .eq('order_id', order.id)
+            .limit(1);
+
+          if (!existingReview || existingReview.length === 0) {
+            setIsVerifiedBuyer(true);
+            setHasReviewedAllOrders(false);
+            setVerifiedOrder(order);
+            // Save email for next session
+            localStorage.setItem(`buyer_email_${store.id}`, currentEmail.trim());
+          } else {
+            console.log("ℹ️ This order already has a review.");
+            setIsVerifiedBuyer(false);
+            setHasReviewedAllOrders(true); // Flag that they bought but exhausted quota
+          }
+        } else {
+          setIsVerifiedBuyer(false);
+          setHasReviewedAllOrders(false);
+        }
+      } catch (e) {
+        console.error("Auto-verify system error:", e);
+      }
+    };
+
+    autoVerify();
+  }, [orderForm.email, store?.id, reviews]); // Added 'reviews' dependency so it re-checks when a review is submitted or deleted
+
   const handleSubmitReview = async () => {
-    if (!user) {
-      toast.error("Silakan login untuk memberikan ulasan");
-      setView("login");
+    // If editing, we don't need to check verifiedBuyer logic again
+    if (!editingReviewId && (!isVerifiedBuyer || !verifiedOrder)) {
+      toast.error("Silakan selesaikan pesanan Anda terlebih dahulu.");
       return;
     }
+
     if (!newReview.text.trim()) {
       toast.error("Ulasan tidak boleh kosong");
       return;
     }
-    if (!store?.id) return;
 
     setIsSubmittingReview(true);
     try {
@@ -652,28 +818,48 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
 
         if (error) throw error;
         setReviews(reviews.map(r => r.id === editingReviewId ? data : r));
-        toast.success("Ulasan diperbarui!");
+        toast.success("Ulasan berhasil diperbarui!");
+        setEditingReviewId(null);
       } else {
-        // Create new review
+        // In a real scenario, we might want to let the user pick WHICH product from their order to review
+        // For now, if it's a multi-item order, we'll link it to the store level or pick the first one
+        const orderItemsStr = verifiedOrder.items || "";
+        // Simple logic: find first product ID that exists in this store matching items string
+        const firstProductInOrder = products.find(p => orderItemsStr.includes(p.name))?.id;
+
+        // Extract just the name from "Name (081...)" format (as fallback)
+        const customerFullName = verifiedOrder.customer || "Pembeli";
+        const nameMatch = customerFullName.match(/^(.*?)\s*\(/);
+        const cleanName = nameMatch ? nameMatch[1].trim() : customerFullName;
+
+        // Absolute Truth: If user is logged in and has a display name, USE IT. Otherwise fallback to order name.
+        const finalReviewerName = (user && displayName) ? displayName : cleanName;
+
         const { data, error } = await supabase
           .from('stores_reviews')
           .insert({
-            store_id: store.id,
-            user_id: user.id,
-            reviewer_name: displayName || user.email.split('@')[0],
+            store_id: store!.id,
+            order_id: verifiedOrder.id,
+            product_id: firstProductInOrder, // Now linked to specific product
+            user_id: user?.id || null, // FIX: Pass user_id if logged in
+            reviewer_name: finalReviewerName,
+            reviewer_wa: verifiedOrder.customer_wa || null,
             review_text: newReview.text,
-            rating: newReview.rating
+            rating: newReview.rating,
+            is_verified: true
           })
           .select()
           .single();
 
         if (error) throw error;
+
         setReviews([data, ...reviews]);
-        toast.success("Terima kasih atas ulasan Anda!");
+        toast.success("Terima kasih! Ulasan Anda sangat berarti.");
+        setIsVerifiedBuyer(false);
+        setVerifiedOrder(null);
       }
-      
+
       setNewReview({ rating: 5, text: "" });
-      setEditingReviewId(null);
     } catch (e: any) {
       toast.error("Gagal mengirim ulasan", { description: e.message });
     } finally {
@@ -683,7 +869,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
 
   const handleDeleteReview = async (id: string) => {
     if (!confirm("Hapus ulasan ini?")) return;
-    
+
     try {
       const { error } = await supabase
         .from('stores_reviews')
@@ -706,6 +892,94 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
     if (formElement) {
       formElement.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  // ----- Dashboard Buyer Review Methods -----
+  const handleSubmitDashboardReview = async () => {
+    if (!reviewingOrder) return;
+    if (!newReview.text.trim()) {
+      toast.error("Ulasan tidak boleh kosong");
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    try {
+      if (editingReviewId) {
+        // Update existing review
+        const { data, error } = await supabase
+          .from('stores_reviews')
+          .update({
+            review_text: newReview.text,
+            rating: newReview.rating
+          })
+          .eq('id', editingReviewId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        setMyReviews(myReviews.map(r => r.id === editingReviewId ? data : r));
+        toast.success("Ulasan berhasil diperbarui!");
+      } else {
+        const orderItemsStr = reviewingOrder.items || "";
+        const customerFullName = reviewingOrder.customer || "Pembeli";
+        const nameMatch = customerFullName.match(/^(.*?)\s*\(/);
+        const cleanName = nameMatch ? nameMatch[1].trim() : customerFullName;
+        const finalReviewerName = (user && displayName) ? displayName : cleanName;
+
+        // Ensure we have a store_id
+        const targetStoreId = reviewingOrder.store_id || reviewingOrder.store?.id || reviewingOrder.stores?.id;
+        if (!targetStoreId) throw new Error("ID Toko tidak ditemukan untuk pesanan ini");
+
+        const { data, error } = await supabase
+          .from('stores_reviews')
+          .insert({
+            store_id: targetStoreId,
+            order_id: reviewingOrder.id,
+            user_id: user?.id || null,
+            reviewer_name: finalReviewerName,
+            reviewer_wa: reviewingOrder.customer_wa || null,
+            review_text: newReview.text,
+            rating: newReview.rating,
+            is_verified: true
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        setMyReviews([data, ...myReviews]);
+        toast.success("Ulasan berhasil dikirim!");
+      }
+
+      setReviewModalOpen(false);
+      setReviewingOrder(null);
+      setEditingReviewId(null);
+      setNewReview({ rating: 5, text: "" });
+    } catch (e: any) {
+      toast.error("Gagal mengirim ulasan", { description: e.message });
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  const handleDeleteDashboardReview = async (id: string, e: any) => {
+    e.stopPropagation();
+    if (!confirm("Hapus ulasan ini?")) return;
+    try {
+      const { error } = await supabase.from('stores_reviews').delete().eq('id', id);
+      if (error) throw error;
+      setMyReviews(myReviews.filter(r => r.id !== id));
+      toast.success("Ulasan dihapus");
+    } catch (err) {
+      toast.error("Gagal menghapus ulasan");
+    }
+  };
+
+  const handleStartEditDashboardReview = (r: any, order: any, e: any) => {
+    e.stopPropagation();
+    setReviewingOrder(order);
+    setEditingReviewId(r.id);
+    setNewReview({ rating: r.rating || 5, text: r.review_text });
+    setReviewModalOpen(true);
   };
 
   useEffect(() => {
@@ -746,8 +1020,9 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
   useEffect(() => {
     if (!store?.id || !user?.id) return;
 
+    console.log("📡 Enabling Realtime Orders for Store:", store.id);
     const channel = supabase
-      .channel('schema-db-changes')
+      .channel(`orders_store_${store.id}`)
       .on(
         'postgres_changes',
         {
@@ -757,12 +1032,31 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
           filter: `store_id=eq.${store.id}`
         },
         (payload) => {
-          console.log('Realtime Order Event:', payload);
-          // Refetch orders & stats whenever there's a new order
-          fetchStoreData(user.id);
+          console.log('🔥 REALTIME ORDER EVENT:', payload.eventType, payload);
+
+          if (payload.eventType === 'INSERT') {
+            const newOrder = payload.new;
+            // 1. Update orders state instantly
+            setOrders(prev => [newOrder, ...prev]);
+
+            // 2. Play notification sound or show toast
+            toast.success(`Pesanan Baru Masuk! #${newOrder.id?.toString().slice(-4)}`, {
+              description: `Dari ${newOrder.customer}`,
+              duration: 5000,
+            });
+
+            // 3. Optional: Refetch full data to sync stats exactly
+            fetchStoreData(user.id);
+          } else if (payload.eventType === 'UPDATE') {
+            setOrders(prev => prev.map(o => o.id === payload.new.id ? payload.new : o));
+          } else if (payload.eventType === 'DELETE') {
+            setOrders(prev => prev.filter(o => o.id !== payload.old.id));
+          }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("🔌 Realtime Order Status:", status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -825,14 +1119,14 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
             email: setupForm.email,
             password: setupForm.password,
           });
-          
+
           if (loginError) {
             if (loginError.message.toLowerCase().includes('invalid login credentials')) {
               throw new Error("Akun ini sudah terdaftar di eL Vision. Silakan gunakan password yang benar atau fitur Lupa Password.");
             }
             throw loginError;
           }
-          
+
           if (loginData.user) {
             // Create store for existing user if they don't have one
             const { data: existingStore } = await supabase
@@ -854,14 +1148,14 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                 user_email: setupForm.email
               });
             }
-            
+
             toast.success("Migrasi Berhasil", { description: "Akun Anda terdeteksi di ekosistem eL Vision. Selamat datang!" });
             return; // onAuthStateChange will handle view
           }
         }
         throw authError;
       }
-      
+
       if (!authData.user) throw new Error("Gagal membuat user");
 
       // If signUp didn't create a session, force sign in with same credentials
@@ -1205,15 +1499,53 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
     </div>
   );
 
+  // Check if it's running locally (dev) or on local network
+  const isLocalHost = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.startsWith('192.168.') ||
+    window.location.hostname.startsWith('10.') ||
+    window.location.hostname.endsWith('.local')
+  );
+
+  // Mobile Simulator Wrapper for Desktop Local Testing
+  const renderWithMobileFrame = (children: React.ReactNode) => {
+    if (isMobile) return children;
+
+    // Only apply frame on desktop if it's local (as requested for testing mobility)
+    if (isLocalHost) {
+      return (
+        <div className="min-h-screen bg-zinc-950 flex items-center justify-center py-10 px-4">
+          <div className="relative w-[375px] h-[812px] bg-white rounded-[40px] shadow-[0_0_80px_-15px_rgba(0,0,0,0.6)] overflow-hidden border-[12px] border-zinc-800 ring-1 ring-zinc-700">
+            {/* iPhone Notch Mockup */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-7 bg-zinc-800 rounded-b-2xl z-[100] flex items-center justify-center">
+              <div className="w-12 h-1 bg-zinc-700 rounded-full" />
+            </div>
+
+            {/* Screen Content */}
+            <div className="w-full h-full overflow-y-auto scrollbar-hide">
+              {children}
+            </div>
+
+            {/* iOS Home Indicator */}
+            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-zinc-800/20 rounded-full z-[100]" />
+          </div>
+        </div>
+      );
+    }
+
+    return children;
+  };
+
   // Check if user is logged in, not on the homepage, and viewing on desktop
   const isProtectedView = user && view !== "home" && view !== "login";
-  if (isProtectedView && !isMobile && window.location.hostname !== 'localhost') {
+  if (isProtectedView && !isMobile && !isLocalHost) {
     return mobileRestrictionScreen;
   }
 
   // ========== HOME PAGE ==========
   if (view === "home") {
-    return (
+    return renderWithMobileFrame(
       <div className="min-h-screen bg-background relative pb-20 md:pb-0">
         {/* Top Navbar */}
         <nav className="sticky top-0 z-50 bg-card/80 backdrop-blur-lg border-b hidden md:block shadow-sm">
@@ -2024,6 +2356,193 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
             </div>
           </div>
         </div>
+
+        {/* Purchase History Table Section (SELLER VIEW) */}
+        <div className="rounded-2xl bg-card shadow-sm border overflow-hidden mt-6 mb-12">
+          <div className="p-5 border-b bg-muted/20 flex items-center justify-between">
+            <h2 className="font-bold text-foreground flex items-center gap-2">
+              <Activity className="w-5 h-5 text-secondary" /> Pesanan Masuk Lengkap (Toko Anda)
+            </h2>
+            <div className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-1 rounded-full uppercase tracking-widest">
+              {orders.length} Transaksi Tercatat
+            </div>
+          </div>
+          <div className="overflow-x-auto scrollbar-hide">
+            <table className="w-full text-sm text-left border-collapse">
+              <thead>
+                <tr className="bg-muted/50 text-muted-foreground text-[10px] uppercase tracking-widest border-b">
+                  <th className="px-6 py-4 font-black">Pesanan / Pembeli</th>
+                  <th className="px-6 py-4 font-black">Detail Produk</th>
+                  <th className="px-6 py-4 font-black text-center">Status</th>
+                  <th className="px-6 py-4 font-black text-right">Total Bayar</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/50">
+                {orders.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-16 text-center text-muted-foreground italic">
+                      <Inbox className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                      Belum ada riwayat transaksi di toko ini.
+                    </td>
+                  </tr>
+                ) : (
+                  orders.map((o) => (
+                    <tr key={o.id} className="hover:bg-muted/5 transition-colors group">
+                      <td className="px-6 py-5">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-black text-foreground tracking-tight leading-none text-base">#{o.id}</span>
+                          <span className="text-xs font-bold text-muted-foreground/80">{o.customer}</span>
+                          <span className="text-[10px] text-muted-foreground/50 mt-1">{o.date}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <p className="text-xs text-muted-foreground line-clamp-2 max-w-[250px] leading-relaxed italic">"{o.items}"</p>
+                      </td>
+                      <td className="px-6 py-5 text-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <span className={`text-[9px] font-black px-3 py-1.5 rounded-xl uppercase shadow-sm inline-block min-w-[80px] border border-white/20 ${statusColors[o.status as OrderStatus] || 'bg-muted text-muted-foreground'}`}>
+                            {o.status}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5 text-right">
+                        <div className="flex flex-col items-end">
+                          <span className="font-black text-secondary text-base">
+                            {formatRp(parseFloat(o.total_amount) || o.total || 0)}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground/60 uppercase font-bold">{o.payment_method || 'WhatsApp Order'}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* My Purchases Table Section (BUYER VIEW) */}
+        {myPurchases.length > 0 && (
+          <div className="rounded-2xl bg-card shadow-sm border overflow-hidden mb-12">
+            <div className="p-5 border-b bg-muted/20 flex items-center justify-between">
+              <h2 className="font-bold text-foreground flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5 text-primary" /> Riwayat Belanja Saya
+              </h2>
+              <div className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-1 rounded-full uppercase tracking-widest">
+                {myPurchases.length} Pembelian
+              </div>
+            </div>
+            <div className="overflow-x-auto scrollbar-hide">
+              <table className="w-full text-sm text-left border-collapse">
+                <thead>
+                  <tr className="bg-muted/50 text-muted-foreground text-[10px] uppercase tracking-widest border-b">
+                    <th className="px-6 py-4 font-black">Pesanan / Toko</th>
+                    <th className="px-6 py-4 font-black">Detail Produk</th>
+                    <th className="px-6 py-4 font-black text-center">Status</th>
+                    <th className="px-6 py-4 font-black text-right">Total Bayar</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {myPurchases.map((o) => (
+                    <tr key={o.id} className="hover:bg-muted/5 transition-colors group">
+                      <td className="px-6 py-5">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-black text-foreground tracking-tight leading-none text-base">#{o.id}</span>
+                          <span className="text-xs font-bold text-primary">{o.store?.name || o.stores?.name || "Toko"}</span>
+                          <span className="text-[10px] text-muted-foreground/50 mt-1">{o.date}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <p className="text-xs text-muted-foreground line-clamp-2 max-w-[250px] leading-relaxed italic">"{o.items}"</p>
+                      </td>
+                      <td className="px-6 py-5 text-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <span className={`text-[9px] font-black px-3 py-1.5 rounded-xl uppercase shadow-sm inline-block min-w-[80px] border border-white/20 ${statusColors[o.status as OrderStatus] || 'bg-muted text-muted-foreground'}`}>
+                            {o.status}
+                          </span>
+
+                          {/* Quick Review Button for Buyers */}
+                          {(o.store?.alias || o.stores?.alias) && (
+                            <div className="flex flex-col items-center mt-1">
+                              {(() => {
+                                const existingReview = myReviews.find(r => r.order_id === o.id);
+                                if (existingReview) {
+                                  return (
+                                    <>
+                                      <div className="flex items-center gap-1 text-[10px] text-yellow-500 font-bold mb-1 justify-center">
+                                        <Star className="w-3 h-3 fill-yellow-500" />
+                                        {existingReview.rating}/5
+                                      </div>
+                                      <button
+                                        onClick={() => {
+                                          const targetAlias = o.store?.alias || o.stores?.alias;
+                                          if (targetAlias) {
+                                            localStorage.setItem(`buyer_email_${o.store_id}`, o.customer_email || user?.email || "");
+                                            // Redirecting to store with action to edit, passing the review ID in hash
+                                            window.location.href = `/${targetAlias}#review-form-edit-${existingReview.id}`;
+                                          }
+                                        }}
+                                        className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
+                                      >
+                                        <Pencil className="w-3 h-3" /> Edit di Toko
+                                      </button>
+                                      <button
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          if (confirm('Yakin ingin menghapus ulasan ini?')) {
+                                            const { error } = await supabase.from('stores_reviews').delete().eq('id', existingReview.id);
+                                            if (!error) {
+                                              setMyReviews(myReviews.filter(r => r.id !== existingReview.id));
+                                              toast.success("Ulasan berhasil dihapus!");
+                                            } else {
+                                              toast.error("Gagal menghapus ulasan.", { description: error.message });
+                                            }
+                                          }
+                                        }}
+                                        className="text-[10px] font-bold text-destructive hover:underline flex items-center gap-1"
+                                      >
+                                        <Trash2 className="w-3 h-3" /> Hapus
+                                      </button>
+                                    </>
+                                  );
+                                } else {
+                                  return (
+                                    <button
+                                      onClick={() => {
+                                        const email = o.customer_email || user?.email;
+                                        const targetAlias = o.store?.alias || o.stores?.alias;
+                                        if (email && targetAlias) {
+                                          localStorage.setItem(`buyer_email_${o.store_id}`, email);
+                                          window.location.href = `/${targetAlias}#review-form`;
+                                        } else {
+                                          toast.error("Data tidak lengkap untuk verifikasi review.");
+                                        }
+                                      }}
+                                      className="text-[10px] font-bold text-secondary hover:underline flex items-center gap-1 mt-1 bg-secondary/10 px-2 py-1 rounded-md"
+                                    >
+                                      <Star className="w-3 h-3 fill-secondary" /> Beri Ulasan
+                                    </button>
+                                  );
+                                }
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-5 text-right">
+                        <div className="flex flex-col items-end">
+                          <span className="font-black text-secondary text-base">
+                            {formatRp(parseFloat(o.total_amount) || o.total || 0)}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2135,6 +2654,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
             {[
               { label: "Nama Lengkap", key: "nama" as const, type: "text", placeholder: "Masukkan nama Anda" },
               { label: "Nomor WhatsApp", key: "wa" as const, type: "tel", placeholder: "08xxxxxxxxxx" },
+              { label: "Email (Untuk Verifikasi Ulasan)", key: "email" as const, type: "email", placeholder: "anda@email.com" },
               { label: "Alamat Pengiriman", key: "alamat" as const, type: "text", placeholder: "Jl. ..." },
             ].map((f) => (
               <div key={f.key}>
@@ -2144,7 +2664,8 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                   placeholder={f.placeholder}
                   value={orderForm[f.key]}
                   onChange={(e) => setOrderForm({ ...orderForm, [f.key]: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-lg border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                  disabled={f.key === 'email' && !!user} // LOCK EMAIL IF LOGGED IN
+                  className={`w-full px-3 py-2.5 rounded-lg border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50 ${f.key === 'email' && user ? "bg-muted cursor-not-allowed opacity-70" : ""}`}
                 />
               </div>
             ))}
@@ -2196,24 +2717,64 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
               });
 
               if (hasItem && store?.id) {
-                // Prepare items summary for the Order table
                 const itemsSummary = products
                   .filter(p => demoCart[p.id.toString()] > 0)
                   .map(p => `${demoCart[p.id.toString()]}x ${p.name}`)
                   .join(", ");
 
-                // Fire CAPI Purchase Event & Save Order in the background
-                supabase.functions.invoke("capi-stores", {
-                  body: {
-                    store_id: store.id,
-                    value: totalValue,
-                    currency: "IDR",
-                    order_id: `ORD_${Date.now()}`,
-                    customer_name: orderForm.nama || "Guest",
-                    customer_wa: orderForm.wa || "-",
-                    items_summary: itemsSummary
+                const finalEmail = user?.email || orderForm.email || "-";
+
+                const orderData = {
+                  store_id: store.id,
+                  customer: orderForm.nama ? `${orderForm.nama} (${orderForm.wa})` : "Guest",
+                  // removed customer_wa because it causes PGRST204 error (column does not exist)
+                  customer_email: finalEmail,
+                  items: itemsSummary,
+                  total_amount: totalValue,
+                  status: "baru",
+                  date: new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })
+                };
+
+                console.log("🚀 SUBMITTING ORDER:", orderData);
+
+                const performOrder = async () => {
+                  try {
+                    // 1. DIRECT INSERT (This is the ONLY way we save orders now)
+                    console.log("🚀 SAVING ORDER VIA FRONTEND...");
+                    const { data: savedOrder, error: insertError } = await supabase
+                      .from('stores_orders')
+                      .insert(orderData)
+                      .select()
+                      .single();
+
+                    if (insertError) {
+                      console.error("❌ DB INSERT ERROR (Check RLS Policy):", insertError);
+                      toast.error("Gagal menyimpan pesanan ke database.");
+                    } else {
+                      console.log("✅ ORDER SAVED PERFECTLY:", savedOrder);
+                      // Update local state instantly so it appears in history
+                      setOrders(prev => [savedOrder, ...prev]);
+                    }
+
+                    // 2. TRIGGER CAPI (Only for Meta Pixel, not for saving)
+                    supabase.functions.invoke("capi-stores", {
+                      body: {
+                        ...orderData,
+                        customer_name: orderForm.nama || "Guest", // Fallback for old Edge Function
+                        customer_wa: orderForm.wa || "-",         // Fallback for old Edge Function
+                        customer_email: finalEmail,
+                        order_id: savedOrder?.id || `ORD_${Date.now()}`,
+                        value: totalValue,
+                        currency: "IDR"
+                      }
+                    }).catch(e => console.error("CAPI Sync failed:", e));
+
+                  } catch (err) {
+                    console.error("Critical order flow error:", err);
                   }
-                }).catch(e => console.error("CAPI/Order Trigger failed:", e));
+                };
+
+                performOrder();
               }
 
               // Open WhatsApp
@@ -2245,47 +2806,86 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
           <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
             <Star className="w-5 h-5 text-accent fill-accent" /> Ulasan Pelanggan
           </h2>
-          
-          {/* Add Review Form */}
-          <div id="review-form" className="rounded-xl bg-card shadow-sm border p-5 mb-6">
-            <h3 className="text-sm font-bold mb-3">{editingReviewId ? "Edit Ulasan Anda" : "Tulis Ulasan Anda"}</h3>
-            <div className="flex items-center gap-2 mb-4">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <button 
-                  key={s} 
-                  onClick={() => setNewReview({ ...newReview, rating: s })}
-                  className="focus:outline-none"
-                >
-                  <Star className={`w-6 h-6 ${s <= newReview.rating ? "text-accent fill-accent" : "text-muted"}`} />
-                </button>
-              ))}
-            </div>
-            <textarea
-              placeholder="Ceritakan pengalaman Anda belanja di sini..."
-              value={newReview.text}
-              onChange={(e) => setNewReview({ ...newReview, text: e.target.value })}
-              className="w-full px-3 py-2.5 rounded-lg border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50 resize-none mb-3"
-              rows={3}
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={handleSubmitReview}
-                disabled={isSubmittingReview}
-                className="flex-1 py-2.5 rounded-lg bg-secondary text-white font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                {isSubmittingReview ? "Mengirim..." : editingReviewId ? "Update Ulasan" : "Kirim Ulasan"}
-              </button>
-              {editingReviewId && (
-                <button
-                  onClick={() => { setEditingReviewId(null); setNewReview({ rating: 5, text: "" }); }}
-                  className="px-4 py-2.5 rounded-lg border font-bold text-sm hover:bg-muted transition-colors"
-                >
-                  Batal
-                </button>
-              )}
-            </div>
-          </div>
 
+          {/* Add/Edit Review Form */}
+          <div id="review-form" className="rounded-2xl bg-card shadow-sm border overflow-hidden mb-8 transition-all duration-500">
+            {(!isVerifiedBuyer && !editingReviewId) ? (
+              <div className="p-8 text-center bg-muted/20 space-y-4">
+                <div className="w-16 h-16 bg-background rounded-full flex items-center justify-center mx-auto shadow-sm border border-border/50">
+                  <Star className="w-8 h-8 text-muted-foreground opacity-30" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-sm font-bold text-foreground">
+                    {hasReviewedAllOrders ? "Terima Kasih atas Ulasan Anda!" : "Ingin Menulis Ulasan?"}
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed max-w-[250px] mx-auto">
+                    {hasReviewedAllOrders
+                      ? "Anda telah memberikan ulasan untuk semua pesanan Anda di toko ini. Silakan belanja lagi untuk menulis ulasan baru."
+                      : "Hanya pelanggan yang **sudah pernah belanja** yang dapat memberikan ulasan di toko ini."}
+                  </p>
+                </div>
+                <button
+                  onClick={() => document.getElementById('order')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="px-6 py-2.5 rounded-xl bg-secondary text-white font-bold text-sm hover:opacity-90 transition-all active:scale-95 shadow-md"
+                >
+                  Belanja Sekarang →
+                </button>
+              </div>
+            ) : (
+              <div className="animate-in fade-in slide-in-from-top-4 duration-700">
+                <div className="p-4 bg-success/10 border-b border-success/20 flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-success flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" /> {editingReviewId ? "Edit Ulasan Anda" : "Ulasan Terverifikasi"}
+                  </h3>
+                  {!editingReviewId && (
+                    <span className="text-[10px] font-bold text-success/70 bg-white px-2 py-0.5 rounded-full border border-success/20">
+                      Order #{verifiedOrder?.id?.toString().slice(-4)}
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-5">
+                  <p className="text-xs font-bold text-foreground mb-4">
+                    {editingReviewId ? "Silakan perbarui rating dan ulasan Anda:" : `Halo ${verifiedOrder?.customer_name || displayName || "Pembeli"}, berikan rating untuk pengalaman belanja Anda:`}
+                  </p>
+                  <div className="flex items-center gap-2 mb-6">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setNewReview({ ...newReview, rating: s })}
+                        className="focus:outline-none transition-transform active:scale-125"
+                      >
+                        <Star className={`w-9 h-9 ${s <= newReview.rating ? "text-accent fill-accent" : "text-muted"}`} />
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    placeholder={`Bagaimana pendapat Anda tentang produk di ${store?.name || 'toko kami'}?`}
+                    value={newReview.text}
+                    onChange={(e) => setNewReview({ ...newReview, text: e.target.value })}
+                    className="w-full px-4 py-4 rounded-xl border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50 resize-none mb-4 min-h-[120px] shadow-inner"
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleSubmitReview}
+                      disabled={isSubmittingReview || !newReview.text.trim()}
+                      className="flex-1 py-4 rounded-xl bg-secondary text-white font-black text-sm hover:opacity-90 transition-all disabled:opacity-50 shadow-lg active:scale-95"
+                    >
+                      {isSubmittingReview ? "Mengirim..." : editingReviewId ? "Update Ulasan" : "Kirim Ulasan Sekarang"}
+                    </button>
+                    {editingReviewId && (
+                      <button
+                        onClick={() => { setEditingReviewId(null); setNewReview({ rating: 5, text: "" }); }}
+                        className="px-6 py-4 rounded-xl border bg-background font-bold text-sm hover:bg-muted transition-colors shadow-sm"
+                      >
+                        Batal
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
           {/* Reviews List */}
           <div className="space-y-4">
             {reviews.length === 0 ? (
@@ -2294,25 +2894,44 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
               </div>
             ) : (
               reviews.map((r) => (
-                <div key={r.id} className="bg-card p-4 rounded-xl border shadow-sm group">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-sm">{r.reviewer_name}</span>
-                      <span className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</span>
+                <div key={r.id} className="bg-card p-5 rounded-2xl border shadow-sm group hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center text-secondary font-bold text-sm">
+                        {((r as any).profile?.display_name || r.reviewer_name || "U").charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-sm">{(r as any).profile?.display_name || r.reviewer_name || "Pembeli"}</span>
+                          {r.is_verified && (
+                            <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-success/10 text-success text-[9px] font-bold uppercase tracking-tighter">
+                              <CheckCircle2 className="w-2.5 h-2.5" /> Terverifikasi
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                          {r.product_id && (
+                            <span className="text-[10px] font-medium text-secondary/70 bg-secondary/5 px-2 rounded-md">
+                              Membeli: {products.find(p => p.id === r.product_id)?.name || "Produk"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     {user && user.id === r.user_id && (
                       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleStartEditReview(r)} className="p-1 hover:text-secondary"><Pencil className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleDeleteReview(r.id)} className="p-1 hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleStartEditReview(r)} className="p-2 bg-muted/50 rounded-lg hover:bg-secondary/20 hover:text-secondary transition-colors"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => handleDeleteReview(r.id)} className="p-2 bg-muted/50 rounded-lg hover:bg-destructive/20 hover:text-destructive transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 mb-2">
+                  <div className="flex items-center gap-1 mb-3">
                     {[1, 2, 3, 4, 5].map((s) => (
                       <Star key={s} className={`w-3 h-3 ${s <= r.rating ? "text-accent fill-accent" : "text-muted"}`} />
                     ))}
                   </div>
-                  <p className="text-xs text-foreground leading-relaxed italic">"{r.review_text}"</p>
+                  <p className="text-sm text-foreground leading-relaxed italic">"{r.review_text}"</p>
                 </div>
               ))
             )}

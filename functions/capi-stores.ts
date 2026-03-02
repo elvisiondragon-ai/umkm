@@ -13,9 +13,13 @@ serve(async (req) => {
     }
 
     try {
-        const { store_id, value, currency, order_id, customer_name, customer_wa, items_summary } = await req.json()
+        const payloadJson = await req.json()
+        console.log("📥 [CAPI-STORES] RECEIVED PAYLOAD:", JSON.stringify(payloadJson, null, 2))
+
+        const { store_id, value, currency, order_id, customer_name, customer_wa, customer_email, items_summary } = payloadJson
 
         if (!store_id || !value) {
+            console.error("❌ [CAPI-STORES] Missing required parameters. Store ID:", store_id, "Value:", value)
             throw new Error("Missing required parameters: store_id or value")
         }
 
@@ -25,6 +29,7 @@ serve(async (req) => {
         const supabase = createClient(supabaseUrl, supabaseKey)
 
         // 1. Fetch Store's CAPI Credentials secretly
+        console.log(`🔍 [CAPI-STORES] Fetching credentials for store: ${store_id}`)
         const { data: store, error: fetchError } = await supabase
             .from('stores')
             .select('pixel, capi, test_event_code')
@@ -32,6 +37,7 @@ serve(async (req) => {
             .single()
 
         if (fetchError || !store) {
+            console.error("❌ [CAPI-STORES] Store fetch error:", fetchError)
             throw new Error("Store not found or error fetching credentials")
         }
 
@@ -40,29 +46,46 @@ serve(async (req) => {
         const TEST_EVENT_CODE = store.test_event_code
 
         // Always save the order to the database first, regardless of CAPI status
+        console.log(`💾 [CAPI-STORES] Attempting to save order for ${customer_name || payloadJson.customer} (${customer_email})`)
+        let savedOrderDb = null;
         try {
-            await supabase.from('stores_orders').insert({
+            // Frontend might send 'customer' directly or 'customer_name' + 'customer_wa'
+            const finalCustomerString = payloadJson.customer || (customer_name ? `${customer_name} (${customer_wa || '-'})` : (order_id || "Guest"));
+
+            const { data: insertData, error: dbErr } = await supabase.from('stores_orders').insert({
                 store_id: store_id,
-                customer: customer_name ? `${customer_name} (${customer_wa})` : (order_id || "Guest"),
-                items: items_summary || "Order via WhatsApp Checkout",
+                customer: finalCustomerString, // GUARANTEED NOT NULL
+                customer_email: customer_email || null, // THE CRITICAL PIECE
+                items: items_summary || payloadJson.items || "Order via WhatsApp Checkout",
                 total_amount: value,
-                status: "baru", // changed from Pending to match frontend status literal 'baru'
+                status: "baru", 
                 date: new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })
-            })
+            }).select().single()
+            
+            if (dbErr) {
+                 console.error("❌ [CAPI-STORES] DB INSERT ERROR:", JSON.stringify(dbErr))
+            } else {
+                 console.log("✅ [CAPI-STORES] DB INSERT SUCCESS. Order ID:", insertData.id)
+                 savedOrderDb = insertData;
+            }
         } catch (dbErr) {
-            console.error("Failed to insert order to DB (Non-fatal):", dbErr);
+            console.error("❌ [CAPI-STORES] CRITICAL DB EXCEPTION:", dbErr);
         }
 
-        // If the seller hasn't configured CAPI, just return gracefully
+        // If the seller hasn't configured CAPI, return gracefully AFTER saving order
         if (!PIXEL_ID || !ACCESS_TOKEN) {
+            console.log("ℹ️ [CAPI-STORES] No CAPI configured. Order saved successfully. Exiting.");
             return new Response(JSON.stringify({
                 success: true,
-                message: "No CAPI configured for this store. Ignored."
+                message: "Order saved. No CAPI configured for this store.",
+                order: savedOrderDb
             }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 status: 200,
             })
         }
+
+        console.log(`[CAPI-STORES] Processing Meta Pixel event for ${customer_name}`)
 
         // 2. Prepare Meta Conversions API Payload (Purchase Event)
         const eventId = order_id || `ORDER_${Date.now()}_${Math.floor(Math.random() * 1000)}`

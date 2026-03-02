@@ -1,0 +1,12 @@
+{
+    "name": "ig_bot_deploy",
+    "version": "1.0.0",
+    "description": "Instagram DM Automation for UMKM",
+    "main": "ig_bot.js",
+    "scripts": {
+        "start": "node ig_bot.js"
+    },
+    "dependencies": {
+        "puppeteer": "^22.0.0"
+    }
+}
