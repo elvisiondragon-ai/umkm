@@ -40,16 +40,27 @@ interface Product {
 interface DBStore {
   id: string;
   user_id: string;
-  alias: string;
-  name: string;
-  logo_url: string;
-  theme_color: string;
-  wa_number: string;
-  address: string;
-  payment_info: string;
+  alias: string | null;
+  name: string | null;
+  logo_url: string | null;
+  theme_color: string | null;
+  wa_number: string | null;
+  address: string | null;
+  payment_info: string | null;
   capi?: string;
   pixel?: string;
+  test_event_code?: string;
   alias_change_count?: number;
+}
+
+interface Review {
+  id: string;
+  store_id: string;
+  user_id: string | null;
+  reviewer_name: string;
+  review_text: string;
+  rating: number;
+  created_at: string;
 }
 
 interface Order {
@@ -160,6 +171,9 @@ const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
   const [demoOrderForm, setDemoOrderForm] = useState({ nama: "", wa: "", alamat: "", catatan: "", paymentMethod: "cod" });
   const [demoCart, setDemoCart] = useState<Record<string, number>>({});
   const [showDemoOutput, setShowDemoOutput] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [newReview, setNewReview] = useState({ rating: 5, text: "" });
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [isMobile, setIsMobile] = useState(true);
   const [setupForm, setSetupForm] = useState({
     storeName: "",
@@ -208,6 +222,8 @@ const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
 
   // Handle Dynamic Public Store Route
   useEffect(() => {
+    let reviewSubscription: any = null;
+
     if (alias) {
       const fetchPublicStore = async () => {
         setIsLoading(true);
@@ -225,6 +241,39 @@ const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
             .eq('store_id', storeData.id);
 
           if (productsData) setProducts(productsData);
+
+          // Fetch reviews
+          const { data: reviewsData } = await supabase
+            .from('stores_reviews')
+            .select('*')
+            .eq('store_id', storeData.id)
+            .order('created_at', { ascending: false });
+
+          if (reviewsData) setReviews(reviewsData || []);
+
+          // Enable Realtime Subscription for Reviews
+          reviewSubscription = supabase
+            .channel(`reviews_store_${storeData.id}`)
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'stores_reviews',
+                filter: `store_id=eq.${storeData.id}`
+              },
+              (payload) => {
+                if (payload.eventType === 'INSERT') {
+                  setReviews((prev) => [payload.new as Review, ...prev]);
+                } else if (payload.eventType === 'UPDATE') {
+                  setReviews((prev) => prev.map(r => r.id === payload.new.id ? payload.new as Review : r));
+                } else if (payload.eventType === 'DELETE') {
+                  setReviews((prev) => prev.filter(r => r.id !== payload.old.id));
+                }
+              }
+            )
+            .subscribe();
+
           setView("live-store");
 
           // Increment page views
@@ -238,6 +287,12 @@ const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
 
       fetchPublicStore();
     }
+
+    return () => {
+      if (reviewSubscription) {
+        supabase.removeChannel(reviewSubscription);
+      }
+    };
   }, [alias, navigate]);
 
   // Mock Data for Demo (Toko Mandiri)
@@ -481,17 +536,16 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
 
       // AUTO MIGRATION: Create default store for users missing one (e.g. soto@yahoo.com)
       if (!activeStore && profileData?.user_email) {
-        const baseAlias = profileData.user_email.split('@')[0].toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        const defaultAlias = `${baseAlias}-${Math.floor(Math.random() * 1000)}`;
+        // Buyer logic: Create a skeleton store with NULL values for instant switch later
         const { data: newStore, error: createError } = await supabase
           .from('stores')
           .insert({
             user_id: userId,
-            name: `Toko ${profileData.display_name || baseAlias}`,
-            alias: defaultAlias,
-            theme_color: '#ffffff',
+            name: null,
+            alias: null,
+            wa_number: null,
             user_email: profileData.user_email,
-            wa_number: "08000000000"
+            theme_color: '#1E3A5F'
           })
           .select('*')
           .single();
@@ -521,11 +575,11 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
 
         setStore(activeStore);
         setStoreSettingsForm({
-          name: activeStore.name,
-          alias: activeStore.alias,
-          waNumber: activeStore.wa_number,
+          name: activeStore.name || "",
+          alias: activeStore.alias || "",
+          waNumber: activeStore.wa_number || "",
           address: activeStore.address || "",
-          theme: activeStore.theme_color,
+          theme: activeStore.theme_color || "#1E3A5F",
           payment: activeStore.payment_info || "",
           logo_url: activeStore.logo_url || "",
           capi: activeStore.capi || "",
@@ -565,6 +619,92 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
+
+  const handleSubmitReview = async () => {
+    if (!user) {
+      toast.error("Silakan login untuk memberikan ulasan");
+      setView("login");
+      return;
+    }
+    if (!newReview.text.trim()) {
+      toast.error("Ulasan tidak boleh kosong");
+      return;
+    }
+    if (!store?.id) return;
+
+    setIsSubmittingReview(true);
+    try {
+      if (editingReviewId) {
+        // Update existing review
+        const { data, error } = await supabase
+          .from('stores_reviews')
+          .update({
+            review_text: newReview.text,
+            rating: newReview.rating
+          })
+          .eq('id', editingReviewId)
+          .select()
+          .single();
+
+        if (error) throw error;
+        setReviews(reviews.map(r => r.id === editingReviewId ? data : r));
+        toast.success("Ulasan diperbarui!");
+      } else {
+        // Create new review
+        const { data, error } = await supabase
+          .from('stores_reviews')
+          .insert({
+            store_id: store.id,
+            user_id: user.id,
+            reviewer_name: displayName || user.email.split('@')[0],
+            review_text: newReview.text,
+            rating: newReview.rating
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        setReviews([data, ...reviews]);
+        toast.success("Terima kasih atas ulasan Anda!");
+      }
+      
+      setNewReview({ rating: 5, text: "" });
+      setEditingReviewId(null);
+    } catch (e: any) {
+      toast.error("Gagal mengirim ulasan", { description: e.message });
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  const handleDeleteReview = async (id: string) => {
+    if (!confirm("Hapus ulasan ini?")) return;
+    
+    try {
+      const { error } = await supabase
+        .from('stores_reviews')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      setReviews(reviews.filter(r => r.id !== id));
+      toast.success("Ulasan dihapus");
+    } catch (e: any) {
+      toast.error("Gagal menghapus ulasan");
+    }
+  };
+
+  const handleStartEditReview = (r: Review) => {
+    setEditingReviewId(r.id);
+    setNewReview({ rating: r.rating, text: r.review_text });
+    // Scroll to review form
+    const formElement = document.getElementById('review-form');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
@@ -1679,22 +1819,55 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         <div>
           <h1 className="text-xl font-bold text-foreground">Selamat Datang, {displayName || user?.email}! 👋</h1>
-          <p className="text-sm text-muted-foreground">Berikut ringkasan performa toko Anda hari ini.</p>
+          <p className="text-sm text-muted-foreground">{store?.name ? "Berikut ringkasan performa toko Anda hari ini." : "Anda saat ini adalah Pembeli. Ingin mulai berjualan?"}</p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map((s, i) => (
-            <div key={i} className="p-4 rounded-xl bg-card shadow-sm border border-border">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-muted-foreground font-medium">{s.label}</span>
-                <s.icon className={`w-4 h-4 ${s.color}`} />
+        {!store?.name ? (
+          <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden group">
+            <div className="relative z-10 max-w-lg">
+              <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 shadow-inner">
+                <Store className="w-8 h-8 text-white" />
               </div>
-              <div className="text-2xl font-bold text-foreground">{s.value}</div>
-              {s.change && <div className="text-xs text-success font-medium mt-1">{s.change}</div>}
+              <h2 className="text-3xl font-black mb-4 leading-tight">Mulai Jualan Online <br /> Dalam 1 Menit! 🚀</h2>
+              <p className="text-amber-50 mb-8 font-medium leading-relaxed opacity-90">
+                Aktifkan fitur Toko UMKM Anda sekarang. Upload produk, atur WA, dan dapatkan link website jualan profesional Anda sendiri secara GRATIS.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <button
+                  onClick={() => setView("settings")}
+                  className="px-8 py-4 bg-white text-orange-600 font-black rounded-2xl shadow-lg hover:scale-105 transition-transform active:scale-95 flex items-center gap-2"
+                >
+                  Aktifkan Toko Saya <ArrowRight className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setView("tools")}
+                  className="px-8 py-4 bg-black/20 backdrop-blur-md text-white font-bold rounded-2xl hover:bg-black/30 transition-colors border border-white/10"
+                >
+                  Pelajari Fitur
+                </button>
+              </div>
             </div>
-          ))}
-        </div>
+            {/* Decorative Elements */}
+            <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-colors"></div>
+            <Zap className="absolute top-10 right-10 w-32 h-32 text-white/5 -rotate-12" />
+          </div>
+        ) : (
+          <>
+            {/* Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {stats.map((s, i) => (
+                <div key={i} className="p-4 rounded-xl bg-card shadow-sm border border-border">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-muted-foreground font-medium">{s.label}</span>
+                    <s.icon className={`w-4 h-4 ${s.color}`} />
+                  </div>
+                  <div className="text-2xl font-bold text-foreground">{s.value}</div>
+                  {s.change && <div className="text-xs text-success font-medium mt-1">{s.change}</div>}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* Analytics Chart */}
         <div className="bg-card rounded-2xl border shadow-sm p-5 w-full">
@@ -2062,6 +2235,87 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
               <span className="text-sm font-semibold text-foreground">{store?.payment_info || 'Rekening Penjual'}</span>
             </div>
             <p className="text-xs text-muted-foreground pt-2 border-t mt-2">Pastikan nama rekening sesuai dan simpan bukti transfer untuk keamanan.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Reviews Section */}
+      <section className="py-8 md:py-12 bg-muted/30">
+        <div className="max-w-lg mx-auto px-4">
+          <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+            <Star className="w-5 h-5 text-accent fill-accent" /> Ulasan Pelanggan
+          </h2>
+          
+          {/* Add Review Form */}
+          <div id="review-form" className="rounded-xl bg-card shadow-sm border p-5 mb-6">
+            <h3 className="text-sm font-bold mb-3">{editingReviewId ? "Edit Ulasan Anda" : "Tulis Ulasan Anda"}</h3>
+            <div className="flex items-center gap-2 mb-4">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button 
+                  key={s} 
+                  onClick={() => setNewReview({ ...newReview, rating: s })}
+                  className="focus:outline-none"
+                >
+                  <Star className={`w-6 h-6 ${s <= newReview.rating ? "text-accent fill-accent" : "text-muted"}`} />
+                </button>
+              ))}
+            </div>
+            <textarea
+              placeholder="Ceritakan pengalaman Anda belanja di sini..."
+              value={newReview.text}
+              onChange={(e) => setNewReview({ ...newReview, text: e.target.value })}
+              className="w-full px-3 py-2.5 rounded-lg border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50 resize-none mb-3"
+              rows={3}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={handleSubmitReview}
+                disabled={isSubmittingReview}
+                className="flex-1 py-2.5 rounded-lg bg-secondary text-white font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {isSubmittingReview ? "Mengirim..." : editingReviewId ? "Update Ulasan" : "Kirim Ulasan"}
+              </button>
+              {editingReviewId && (
+                <button
+                  onClick={() => { setEditingReviewId(null); setNewReview({ rating: 5, text: "" }); }}
+                  className="px-4 py-2.5 rounded-lg border font-bold text-sm hover:bg-muted transition-colors"
+                >
+                  Batal
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Reviews List */}
+          <div className="space-y-4">
+            {reviews.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground italic text-sm bg-card rounded-xl border border-dashed">
+                Belum ada ulasan untuk toko ini.
+              </div>
+            ) : (
+              reviews.map((r) => (
+                <div key={r.id} className="bg-card p-4 rounded-xl border shadow-sm group">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-sm">{r.reviewer_name}</span>
+                      <span className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</span>
+                    </div>
+                    {user && user.id === r.user_id && (
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => handleStartEditReview(r)} className="p-1 hover:text-secondary"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleDeleteReview(r.id)} className="p-1 hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 mb-2">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star key={s} className={`w-3 h-3 ${s <= r.rating ? "text-accent fill-accent" : "text-muted"}`} />
+                    ))}
+                  </div>
+                  <p className="text-xs text-foreground leading-relaxed italic">"{r.review_text}"</p>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>

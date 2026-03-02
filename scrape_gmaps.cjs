@@ -3,9 +3,18 @@ const fs = require('fs');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
 const QUERIES = [
-    'cafe in Jakarta Barat',
-    'restaurant in Jakarta Barat',
-    'barbershop in Jakarta Barat'
+    'salon in Jakarta Barat',
+    'klinik kecantikan in Jakarta Barat',
+    'bengkel mobil in Jakarta Barat',
+    'laundry in Jakarta Barat',
+    'toko roti in Jakarta Barat',
+    'toko bunga in Jakarta Barat',
+    'pet shop in Jakarta Barat',
+    'dokter gigi in Jakarta Barat',
+    'gym in Jakarta Barat',
+    'spa in Jakarta Barat',
+    'toko mebel in Jakarta Barat',
+    'studio foto in Jakarta Barat'
 ];
 
 async function scrapeMaps() {

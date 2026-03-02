@@ -11,6 +11,7 @@ const Index = lazy(() => import("./pages/Index")) as React.LazyExoticComponent<R
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Auth = lazy(() => import("./pages/Auth").then(m => ({ default: m.Auth })));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const WaBlast = lazy(() => import("./pages/WaBlast"));
 import ServiceWorkerUpdater from "./components/ServiceWorkerUpdater";
 
 // Loading Fallback Component
@@ -53,6 +54,7 @@ const App = () => (
             <Route path="/pageseller" element={<Index bypassHome={true} />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/wablast" element={<WaBlast />} />
             <Route path="/:alias" element={<Index />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
