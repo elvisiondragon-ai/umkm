@@ -106,12 +106,12 @@ export function Auth() {
         setIsLoading(true);
         try {
             const trimmedEmail = forgotPasswordData.email.trim().toLowerCase();
-            const { error } = await supabase.auth.resetPasswordForEmail(
-                trimmedEmail,
-                {
+            const { error } = await supabase.functions.invoke('send-reset-password-email', {
+                body: {
+                    email: trimmedEmail,
                     redirectTo: `${window.location.origin}/reset-password`
                 }
-            );
+            });
             if (error) throw error;
             toast({
                 title: "Reset Email Sent!",
@@ -196,7 +196,7 @@ export function Auth() {
                         email: processedEmail,
                         password: signupData.password,
                     });
-                    
+
                     if (loginError) {
                         // If password wrong but account exists, inform them precisely
                         if (loginError.message.toLowerCase().includes('invalid login credentials')) {
@@ -204,7 +204,7 @@ export function Auth() {
                         }
                         throw loginError;
                     }
-                    
+
                     if (loginData.user) {
                         localStorage.setItem('login-success-pending', 'true');
                         navigate(redirectPath);

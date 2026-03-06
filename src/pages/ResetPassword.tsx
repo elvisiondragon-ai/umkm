@@ -82,9 +82,7 @@ export function ResetPassword() {
       <div className="dark min-h-screen bg-[#0F0F23] flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="flex items-center justify-center mb-4">
-              <img src="/shopauto.png" alt="Logo" className="w-20 h-20 object-contain" />
-            </div>
+            {/* Logo Section Removed */}
             <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">UMKM eL Vision</h1>
             <p className="text-muted-foreground mt-2">Password Updated Successfully</p>
           </div>
@@ -111,9 +109,7 @@ export function ResetPassword() {
     <div className="dark min-h-screen bg-[#0F0F23] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <img src="/shopauto.png" alt="Logo" className="w-20 h-20 object-contain" />
-          </div>
+          {/* Logo Section Removed */}
           <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">UMKM eL Vision</h1>
           <p className="text-muted-foreground mt-2">Set Your New Password</p>
         </div>

@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-const APP_VERSION = '2026.03.03.01'; // <-- Change this number to force an update
+const APP_VERSION = '2026.03.07.01'; // Updated for Reset Password subdomain fix
 
 // Execute aggressive cache clearing before React mounts if versions mismatch
 if (localStorage.getItem('v_cache') !== APP_VERSION) {
