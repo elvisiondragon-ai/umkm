@@ -342,10 +342,10 @@ const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
 
   // Mock Data for Demo (Toko Mandiri)
   const mockStats = [
-    { label: "Total Order", value: "142", icon: Package, change: "+12% hari ini", color: "text-secondary" },
-    { label: "Revenue Bulan Ini", value: "Rp 2.450.000", icon: DollarSign, change: "+8% hari ini", color: "text-success" },
-    { label: "Pengunjung Hari Ini", value: "850", icon: Users, change: "+24% hari ini", color: "text-accent" },
-    { label: "Produk Aktif", value: "12", icon: TrendingUp, change: "", color: "text-primary" },
+    { label: "Total Order", value: "0", icon: Package, change: "", color: "text-secondary" },
+    { label: "Revenue Bulan Ini", value: "Rp 0", icon: DollarSign, change: "", color: "text-success" },
+    { label: "Pengunjung Hari Ini", value: "0", icon: Users, change: "", color: "text-accent" },
+    { label: "Produk Aktif", value: "0", icon: TrendingUp, change: "", color: "text-primary" },
   ];
 
   const mockProducts = [
