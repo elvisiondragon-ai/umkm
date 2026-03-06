@@ -109,7 +109,7 @@ export function Auth() {
             const { error } = await supabase.functions.invoke('send-reset-password-email', {
                 body: {
                     email: trimmedEmail,
-                    redirectTo: `${window.location.origin}/reset-password`
+                    redirectTo: `https://app.elvisiongroup.com/reset-password?return=${window.location.origin}`
                 }
             });
             if (error) throw error;
