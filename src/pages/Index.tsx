@@ -16,7 +16,7 @@ import elv3 from '../assets/elv3.png';
 import preview1 from '../assets/preview1.jpeg';
 import preview2 from '../assets/preview2.jpeg';
 import preview3 from '../assets/preview3.jpeg';
-import tutorVideo from '../assets/totor_all.mp4';
+import tutorVideo from '../assets/tutor2.mp4';
 import { initFacebookPixel, trackPageView, trackViewContent } from "../utils/fbpixel";
 
 const PIXEL_ID = "2158382114674235";
@@ -190,6 +190,7 @@ const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [user, setUser] = useState<any>(null);
+  const [userStores, setUserStores] = useState<DBStore[]>([]);
   const [store, setStore] = useState<DBStore | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -553,21 +554,31 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
     return num;
   };
 
-  const fetchStoreData = async (userId: string) => {
+  const fetchStoreData = async (userId: string, targetStoreId?: string) => {
     try {
-      const { data: storeData, error: storeError } = await supabase
+      const { data: storesData, error: storesError } = await supabase
         .from('stores')
         .select('*')
         .eq('user_id', userId)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle();
+        .order('created_at', { ascending: true });
 
-      if (storeError) {
-        console.error("Error fetching store data:", storeError);
+      if (storesError) {
+        console.error("Error fetching stores data:", storesError);
       }
 
-      let activeStore = storeData;
+      if (storesData) {
+        setUserStores(storesData);
+      }
+
+      // If a target store is specified, use it. Otherwise use the first one or the one currently in state.
+      let activeStore = null;
+      if (targetStoreId) {
+        activeStore = storesData?.find(s => s.id === targetStoreId) || null;
+      } else if (store && storesData?.find(s => s.id === store.id)) {
+        activeStore = storesData?.find(s => s.id === store.id);
+      } else if (storesData && storesData.length > 0) {
+        activeStore = storesData[0];
+      }
 
       // Fetch user profile (display name & email for migration)
       const { data: profileData } = await supabase
@@ -601,17 +612,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
         }
       }
 
-      // SELF-HEALING: Delete accidental duplicate stores created by the prior .single() bug
-      if (activeStore && activeStore.id) {
-        supabase
-          .from('stores')
-          .delete()
-          .eq('user_id', userId)
-          .neq('id', activeStore.id)
-          .then(({ error }) => {
-            if (error) console.error("Failed to cleanup duplicate stores:", error);
-          });
-      }
+
 
       if (activeStore) {
         // BUGFIX: Prevent overwriting public store state when logged-in user views another store
@@ -994,7 +995,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
       (event, session) => {
         setUser(session?.user || null);
         if (session?.user) {
-          fetchStoreData(session.user.id);
+          fetchStoreData(session.user.id, store?.id);
           // Only force dashboard if we are on the root or auth page.
           // If we are on a specific store alias (e.g. /soto-309), let the alias useEffect handle routing to 'live-store'.
           if (window.location.pathname === '/' || window.location.pathname === '/auth') {
@@ -1045,7 +1046,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
             });
 
             // 3. Optional: Refetch full data to sync stats exactly
-            fetchStoreData(user.id);
+            fetchStoreData(user.id, store?.id);
           } else if (payload.eventType === 'UPDATE') {
             setOrders(prev => prev.map(o => o.id === payload.new.id ? payload.new : o));
           } else if (payload.eventType === 'DELETE') {
@@ -1301,7 +1302,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
         throw error;
       }
       setLogoFile(null);
-      await fetchStoreData(user.id);
+      await fetchStoreData(user.id, store.id);
       toast.success("Pengaturan toko berhasil disimpan!", {
         description: "Perubahan logo dan detail website telah diperbarui."
       });
@@ -1312,6 +1313,46 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
       });
     } finally {
       setIsSavingStore(false);
+    }
+  };
+
+  const handleCreateNewStore = async () => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.from('stores').insert({
+        user_id: user.id,
+        name: "Nama Toko Baru",
+        alias: `toko-${Math.random().toString(36).substring(2, 7)}`,
+        user_email: user.email,
+        theme_color: '#1E3A5F',
+        wa_number: store?.wa_number || ""
+      }).select('*').single();
+
+      if (error) throw error;
+      if (data) {
+        toast.success("Toko Baru Berhasil Dibuat");
+        await fetchStoreData(user.id, data.id);
+        setView("dashboard");
+      }
+    } catch (e: any) {
+      toast.error("Gagal membuat toko baru: " + e.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSwitchStore = async (storeId: string) => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      await fetchStoreData(user.id, storeId);
+      toast.success("Pindah Toko Berhasil");
+      setView("dashboard");
+    } catch (e: any) {
+      toast.error("Gagal berpindah toko");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -1362,7 +1403,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
       }
 
       setNewProduct({ id: "", name: "", description: "", price: "", imageFile: null });
-      await fetchStoreData(user.id);
+      await fetchStoreData(user.id, store.id);
       toast.success("Produk berhasil ditambahkan!", {
         description: `${newProduct.name} sekarang tersedia di toko Anda.`
       });
@@ -2103,7 +2144,27 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
             </button>
             <div className="flex items-center gap-2">
               <Store className="w-5 h-5 text-amber-950" />
-              <span className="font-bold text-amber-950">Dashboard</span>
+              <div className="flex flex-col">
+                <span className="font-bold text-amber-950 text-xs">Dashboard</span>
+                {userStores.length > 0 && (
+                  <select
+                    value={store?.id || ""}
+                    onChange={(e) => {
+                      if (e.target.value === "new") {
+                        handleCreateNewStore();
+                      } else {
+                        handleSwitchStore(e.target.value);
+                      }
+                    }}
+                    className="bg-transparent border-none p-0 font-bold text-amber-900 text-sm focus:ring-0 cursor-pointer outline-none"
+                  >
+                    {userStores.map(s => (
+                      <option key={s.id} value={s.id} className="text-foreground">{s.name || "Toko Tanpa Nama"}</option>
+                    ))}
+                    <option value="new" className="text-foreground font-bold">+ Tambah Toko Baru</option>
+                  </select>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -2168,6 +2229,40 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
               ))}
             </div>
           </>
+        )}
+
+        {/* Store List (Unlimited) */}
+        {user && userStores.length > 0 && (
+          <div className="bg-card rounded-2xl border shadow-sm p-5 w-full animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-foreground flex items-center gap-2">
+                <Store className="w-5 h-5 text-secondary" /> Daftar Toko Anda
+              </h2>
+              <button
+                onClick={handleCreateNewStore}
+                className="text-xs font-bold px-3 py-1.5 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors flex items-center gap-1"
+              >
+                <Plus className="w-3 h-3" /> Tambah Toko
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {userStores.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => handleSwitchStore(s.id)}
+                  className={`px-4 py-3 rounded-xl border text-sm font-bold transition-all flex items-center gap-3 ${store?.id === s.id
+                    ? 'bg-secondary/10 border-secondary text-secondary shadow-sm ring-2 ring-secondary/20'
+                    : 'bg-background hover:bg-muted text-muted-foreground'}`}
+                >
+                  <div className={`w-2 h-2 rounded-full ${store?.id === s.id ? 'bg-secondary animate-pulse' : 'bg-muted-foreground/30'}`} />
+                  <div className="flex flex-col items-start">
+                    <span>{s.name || "Toko Tanpa Nama"}</span>
+                    <span className="text-[10px] opacity-60 font-medium">umkm.elvisiongroup.com/{s.alias || '...'}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* Analytics Chart */}
@@ -3959,7 +4054,7 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                         onClick={async () => {
                           if (confirm('Yakin ingin menghapus produk ini?')) {
                             const { error } = await supabase.from('stores_product').delete().eq('id', p.id);
-                            if (!error) fetchStoreData(user.id);
+                            if (!error) fetchStoreData(user.id, store?.id);
                           }
                         }}
                         className="p-2 text-destructive hover:bg-destructive/10 rounded-lg"

@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-const APP_VERSION = '2026.03.28.01'; // Updated for new Supabase key fix
+const APP_VERSION = '2026.03.28.03'; // Updated for video size deployment fix
 
 // Execute aggressive cache clearing before React mounts if versions mismatch
 if (localStorage.getItem('v_cache') !== APP_VERSION) {
