@@ -3012,14 +3012,10 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
           <p className="text-xs text-muted-foreground">Dibuat dengan ❤️ oleh <button onClick={() => setView("home")} className="text-secondary hover:underline">ElVisionUMKM</button></p>
         </div>
       </footer>
-      {/* Powered By Banner for Public Store (Only visible in live-store mode) */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-r from-amber-500 to-yellow-500 text-amber-950 p-3 shadow-[0_-10px_30px_rgba(245,158,11,0.2)] md:rounded-t-3xl md:mx-auto md:max-w-md border-t border-amber-400">
-        <a href="https://umkm.elvisiongroup.com" className="flex items-center justify-center gap-2 group">
-          <img src="/favicon.ico" alt="Logo UMKM" className="w-6 h-6 rounded bg-white p-0.5 shadow-sm" />
-          <div className="text-center">
-            <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mb-0.5">Dibuat Dengan</p>
-            <p className="text-sm font-black group-hover:scale-105 transition-transform leading-none tracking-tight">UMKM.ELVISION <span className="underline decoration-2">BUAT TOKOMU GRATIS!</span></p>
-          </div>
+      {/* Powered By Banner for Public Store (Subtle & Small) */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/60 backdrop-blur-md text-slate-400 py-1 border-t border-slate-100 flex justify-center">
+        <a href="https://umkm.elvisiongroup.com" className="flex items-center gap-1.5 hover:text-slate-600 transition-colors">
+          <span className="text-[9px] font-medium tracking-tight">Dibuat dengan umkm.elvision • Buat tokomu gratis</span>
         </a>
       </div>
 
