@@ -1280,14 +1280,9 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
         logo_url: finalLogoUrl,
       };
 
-      // ALIAS CHANGE LOGIC: Limit to 1 time
+      // ALIAS CHANGE LOGIC: Unlimited
       if (storeSettingsForm.alias !== store.alias) {
-        const changeCount = store.alias_change_count || 0;
-        if (changeCount >= 1) {
-          throw new Error("Anda sudah pernah mengubah alias. Alias hanya bisa diubah 1x saja.");
-        }
         updatePayload.alias = storeSettingsForm.alias;
-        updatePayload.alias_change_count = changeCount + 1;
       }
 
       // Only send capi/pixel if user has entered a value
@@ -3817,19 +3812,14 @@ Mohon informasikan total plus ongkir (bila ada) ya.`;
                     <input
                       type="text"
                       value={storeSettingsForm.alias}
-                      disabled={store?.alias_change_count ? store.alias_change_count >= 1 : false}
                       onChange={(e) => setStoreSettingsForm({ ...storeSettingsForm, alias: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
-                      className={`w-full pl-8 pr-4 py-3 rounded-xl border bg-background text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50 ${store?.alias_change_count && store.alias_change_count >= 1 ? 'opacity-60 cursor-not-allowed bg-muted' : ''}`}
+                      className="w-full pl-8 pr-4 py-3 rounded-xl border bg-background text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-secondary/50"
                     />
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex flex-col gap-1">
                       <p className="text-[10px] text-muted-foreground">Alias unik toko Anda. Link lengkap: umkm.elvisiongroup.com/{storeSettingsForm.alias}</p>
-                      {store?.alias_change_count && store.alias_change_count >= 1 ? (
-                        <p className="text-[10px] font-bold text-destructive italic">*Kesempatan ubah alias sudah habis.</p>
-                      ) : (
-                        <p className="text-[10px] font-bold text-amber-600 italic">*Peringatan: Alias hanya bisa diubah 1x saja.</p>
-                      )}
+                      <p className="text-[10px] font-bold text-success italic">*Alias/Web URL dapat diubah kapan saja secara bebas.</p>
                     </div>
                     <button
                       type="button"
