@@ -10,8 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "preinstall": "node preinstall.js"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@capacitor/core": "^8.1.0",
