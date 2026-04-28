@@ -164,7 +164,16 @@ const statusColors: Record<OrderStatus, string> = {
 
 // ==================== MAIN COMPONENT ====================
 const Index = ({ bypassHome = false }: { bypassHome?: boolean }) => {
-  const [view, setView] = useState<View>(bypassHome ? "login" : "home");
+  const [view, setView] = useState<View>(() => {
+    if (bypassHome) return "login";
+    // Immediate detection of alias route to prevent flicker
+    const path = window.location.pathname;
+    const isSpecialPath = path === "/" || path === "/auth" || path === "/pageseller" || path === "/reset-password" || path === "/wablast";
+    if (!isSpecialPath && path.length > 1) {
+      return "live-store";
+    }
+    return "home";
+  });
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [orderForm, setOrderForm] = useState({ nama: "", wa: "", email: "", alamat: "", catatan: "", paymentMethod: "transfer", deliveryMethod: "dikirim" });
   const [demoOrderForm, setDemoOrderForm] = useState({ nama: "", wa: "", alamat: "", catatan: "", paymentMethod: "cod" });

@@ -1,22 +1,37 @@
 <!doctype html>
 <html lang="en">
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>UMKM eL Vision</title>
-  <meta name="description" content="Support UMKM no.1 Indonesia" />
-  <meta name="theme-color" content="#ffffff" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta property="og:title" content="UMKM eL Vision" />
-  <meta property="og:description" content="Support UMKM no.1 Indonesia" />
-  <meta property="og:image" content="/ogimage.png" />
-  <meta name="twitter:title" content="UMKM eL Vision" />
-  <meta name="twitter:description" content="Support UMKM no.1 Indonesia" />
-  <meta name="twitter:image" content="/ogimage.png" />
-  <meta name="twitter:card" content="summary_large_image" />
-</head>
+  <head>
+    <!-- iOS Safari hard cache-bust — ONLY change APP_VERSION here when deploying -->
+    <script>
+      (function() {
+        var V = '2026.04.28.01';
+        window.__APP_VERSION__ = V;
+        var url = new URL(window.location.href);
+        if (url.searchParams.get('v') !== V) {
+          url.searchParams.set('v', V);
+          window.location.replace(url.toString());
+        } else {
+          url.searchParams.delete('v');
+          history.replaceState(null, '', url.pathname + (url.search === '?' ? '' : url.search) + url.hash);
+        }
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>UMKM eL Vision</title>
+    <meta name="description" content="Support UMKM no.1 Indonesia" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta property="og:title" content="UMKM eL Vision" />
+    <meta property="og:description" content="Support UMKM no.1 Indonesia" />
+    <meta property="og:image" content="/ogimage.png" />
+    <meta name="twitter:title" content="UMKM eL Vision" />
+    <meta name="twitter:description" content="Support UMKM no.1 Indonesia" />
+    <meta name="twitter:image" content="/ogimage.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
 
 <body>
   <div id="root"></div>

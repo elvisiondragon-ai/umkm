@@ -7,7 +7,7 @@ import { lazy, Suspense } from "react";
 
 // Lazy Loaded Routes
 // Lazy Loaded Routes
-const Index = lazy(() => import("./pages/Index")) as React.LazyExoticComponent<React.FC<{ bypassHome?: boolean }>>;
+import Index from "./pages/Index";
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Auth = lazy(() => import("./pages/Auth").then(m => ({ default: m.Auth })));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
